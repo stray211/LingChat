@@ -13,7 +13,7 @@ const ADDR = process.env.FRONTEND_ADDR || "localhost";
 const BIND_ADDR = process.env.FRONTEND_BIND_ADDR || "0.0.0.0";
 const PORT = process.env.FRONTEND_PORT || 3000;
 const BACKEND_ADDR = process.env.BACKEND_ADDR || "localhost";
-const BACKEND_PORT = process.env.BACKEND_PORT || 8765;
+const BACKEND_PORT = process.env.BACKEND_PORT || 8766;
 
 // 静态文件服务
 app.use(express.static(path.join(__dirname, "public")));
@@ -26,6 +26,133 @@ app.get("/", (req, res) => {
 app.get("/about", (req, res) => {
   res.sendFile(path.join(__dirname, "public/pages/about.html"));
 });
+
+
+
+const files = require("fs");
+app.get('/api', (require, response) => {
+  const query = require.query;
+  if (query.type == "ai") {};
+  if (query.type == "files") {
+    if (query.command == "read") {
+      files.stat(query.path, (error, stats) => {
+        if (error) {
+          if (error.code == 'ENOENT') {
+            console.error('没有文件');
+          } else {
+            console.error(error);
+          }
+          return;
+        };
+        if (stats.isFile()) {
+          files.readFile(query.path, "utf8", (error, data) => {
+            if (error) {
+              console.error(error);
+              return;
+            }
+            response.json({ message: data });
+          });
+        };
+        if (stats.isDirectory()) {
+          files.readdir(query.path, (error, files) => {
+            if (error) {
+              console.error(error);
+              return;
+            }
+            response.json({ message: files });
+          });
+        };
+      });
+    };
+    if (query.command == "check") {
+      files.stat(query.path, (error, stats) => {
+        if (error) {
+          response.json({ message: "没有文件" });
+        } else {
+          response.json({ message: "存在文件" });
+        };
+      });
+    };
+    if (query.command == "create") {
+      files.mkdir(query.path, (error) => {
+        if (error) {
+          console.error(error);
+          return;
+        };
+        response.json({ message: "创建成功" });
+      });
+    }
+    if (query.command == "delete") {
+      files.stat(query.path, (error, stats) => {
+        if (error) {
+          if (error.code == 'ENOENT') {
+            console.error('没有文件');
+          } else {
+            console.error(error);
+          };
+          return;
+        };
+        if (stats.isFile()) {
+          files.unlink(query.path, (error) => {
+            if (error) {
+              console.error(error);
+              return;
+            };
+            response.json({ message: "删除成功" });
+          });
+        };
+        if (stats.isDirectory()) {
+          files.rmdir(query.path, { recursive: true }, (error) => {
+            if (error) {
+              console.error(error);
+              return;
+            };
+            response.json({ message: "删除成功" });
+          });
+        };
+      });
+    };
+    if (query.command == "write") {
+      files.writeFile(query.path, query.data, (error) => {
+        if (error) {
+          console.error(error);
+          return;
+        };
+        response.json({ message: "写入成功" });
+      });
+    };
+    if (query.command == "rename") {
+      files.rename(query.path, path.join(path.dirname(query.path), query.name), (error) => {
+        if (error) {
+          console.error(error);
+          return;
+        };
+        response.json({ data: "命名成功" });
+      });
+    };
+    if (query.command == "move") {
+      files.rename(query.source, path.join(query.target, path.basename(query.source)), (error) => {
+        if (error) {
+          console.error(error);
+          return;
+        };
+        response.json({ data: "移动成功" });
+      });
+    };
+    if (query.command == "copy") {
+      files.copyFile(query.source, path.join(query.target, path.basename(query.source)), (error) => {
+        if (error) {
+          console.error(error);
+          return;
+        };
+        response.json({ data: "复制成功" });
+      });
+    };
+  };
+});
+
+
+
 
 // 连接到 Python WebSocket 服务
 let pythonSocket = null;
@@ -123,3 +250,4 @@ wss.on("connection", (ws) => {
 server.listen(PORT, BIND_ADDR, () => {
   console.log(`服务器运行在 http://${BIND_ADDR}:${PORT}`);
 });
+
