@@ -1,13 +1,12 @@
 
 
-async function send(Command, Information) {
+async function send(command, information) {
     const url = new URL("http://localhost:3000/api");
     url.searchParams.append('type', 'files');
-    url.searchParams.append('command', Command);
+    url.searchParams.append('command', command);
     for (const key in Information) {
-        url.searchParams.append(key, Information[key]);  
-    }
-    console.log(url);
+        url.searchParams.append(key, information[key]);  
+    };
     try {
         const responce = await fetch(url)
         if (!responce.ok) {
