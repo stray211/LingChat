@@ -12,27 +12,18 @@ async function send(url, information) {
 };
 
 export const api = {
-  get: function(url) {return send(url, {
-    method: 'GET'
+  get: function(url,data) {
+    url = new URL(url);
+    for (const key in data) {
+      url.searchParams.append(key, data[key]);  
+    };
+    return send(url, {
+      method: 'GET'
   })},
-  post: function(url, data) {return send(url, {
-    method: 'POST',
-    headers: {
-      'Contnt-Type': 'application/json'
-    },
-    body: data
-  })},
-  put: function(url, data) {return send(url,  {
-    method: 'PUT',
-    headers: {
-      'Contnt-Type': 'application/json'
-    },
-    body: data
-  })},
-  delete: function(url) {return send(url, {
-    method: 'DELETE'
-  })},
-  options: function(url) {return send(url, {
-    method: 'OPTIONS'
+  post: function(url, data) {
+    return send(url, {
+      method: 'POST',
+      headers: {'Contnt-Type': 'application/json'},
+      body: data
   })}
 };
