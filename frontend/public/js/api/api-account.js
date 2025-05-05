@@ -1,5 +1,6 @@
 import { api } from "./api.js"
 import { url } from "./config.js"
+
 export const apiAccount = {
     login: function(data) {return api.post(url.account, data)},
     register: function(data) {return api.post(url.account, data)},
