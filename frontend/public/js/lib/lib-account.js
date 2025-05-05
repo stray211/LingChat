@@ -1,61 +1,21 @@
 import { apiAccount } from "../api/api-account.js"
 
-function identity(data) {
-  data.accountId = "id"
-  return data
-}
-
-function parse(data, form) {
+function parse(form) {
+  const data = {}
   const formData = new FormData(form);
-  for (const [identity ,value] of formData.entries()) {
-    data[identity].push(value)
+  for (const [key, value] of formData.entries()) {
+    data[key].push(value)
   };
   return data
 }
 
 export let account = {
-  login: function(form) {
-    let data = {};
-    data = identity(data);
-    data = parse(data, form);
-    return apiAccount.login(data);
-  },
-  register: function(form) {
-    let data = {};
-    data = identity(data);
-    data = parse(data, form);
-    return apiAccount.register(data);
-  },
-  repassword: function(form) {
-    let data = {};
-    data = identity(data);
-    data = parse(data, form);
-    return apiAccount.repassword(data);
-  },
-  setting: function(form) {
-    let data = {};
-    data = identity(data);
-    data = parse(data, form);
-    return apiAccount.setting(data);
-  },
-  logout: function() {
-    let data = {};
-    data = identity(data);
-    return apiAccount.logout(data);
-  },
-  list: function() {
-    let data = {};
-    data = identity(data);
-    return apiAccount.list(data);
-  },
-  create: function() {
-    let data = {};
-    data = identity(data);
-    return apiAccount.create(data);
-  },
-  delete: function() {
-    let data = {};
-    data = identity(data);
-    return apiAccount.delete(data);
-  },
+  login: function(form) {return apiAccount.login(parse(form))},
+  register: function(form) {return apiAccount.register(parse(form))},
+  repassword: function(form) {return apiAccount.repassword(parse(form))},
+  setting: function(form) {return apiAccount.setting(parse(form));},
+  logout: function() {return apiAccount.logout({})},
+  list: function() {return apiAccount.list({})},
+  check: function(id) {return apiAccount.check({id: id})},
+  delete: function(id) {return apiAccount.delete({id: id})},
 };
