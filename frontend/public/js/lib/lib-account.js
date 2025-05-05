@@ -16,6 +16,6 @@ export let account = {
   setting: function(form) {return apiAccount.setting(parse(form));},
   logout: function() {return apiAccount.logout({})},
   list: function() {return apiAccount.list({})},
-  create: function(id) {return apiAccount.create({id: id})},
+  check: function(id) {return apiAccount.check({id: id})},
   delete: function(id) {return apiAccount.delete({id: id})},
 };

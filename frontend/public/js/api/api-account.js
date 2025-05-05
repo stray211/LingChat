@@ -7,7 +7,7 @@ export const apiAccount = {
     repassward: function(data) {return api.post(url.account, data)},
     logout: function(data) {return api.post(url.account, data)},
     setting: function(data) {return api.post(url.account, data)},
+    list: function(data) {return api.get(url.account, data)},
+    check: function(data) {return api.get(url.account, data)},
     delete: function(data) {return api.post(url.account, data)},
-    list: function(data) {return api.post(url.account, data)},
-    create: function(data) {return api.post(url.account, data)},
 };
