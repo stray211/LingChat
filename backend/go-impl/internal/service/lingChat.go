@@ -12,8 +12,8 @@ import (
 
 	"github.com/sashabaranov/go-openai"
 
-	"LingChat/api"
 	"LingChat/api/routes/v1/response"
+	"LingChat/api/routes/ws"
 	"LingChat/internal/clients/VitsTTS"
 	"LingChat/internal/clients/emotionPredictor"
 	"LingChat/internal/clients/llm"
@@ -93,7 +93,7 @@ func (l *LingChatService) EmoPredictBatch(ctx context.Context, results []Result)
 	return results
 }
 
-func (l *LingChatService) LingChatByWS(ctx context.Context, msg api.Message) ([]api.Response, error) {
+func (l *LingChatService) LingChatByWS(ctx context.Context, msg ws.Message) ([]ws.Response, error) {
 	switch msg.Type {
 	case "message":
 	case "handshake":
@@ -158,10 +158,10 @@ func (l *LingChatService) LingChat(ctx context.Context, message string, conversa
 	}, nil
 }
 
-func (l *LingChatService) CreateResponse(results []Result, userMessage string) []api.Response {
-	var resp []api.Response
+func (l *LingChatService) CreateResponse(results []Result, userMessage string) []ws.Response {
+	var resp []ws.Response
 	for i, result := range results {
-		resp = append(resp, api.Response{
+		resp = append(resp, ws.Response{
 			Type:            "reply",
 			Emotion:         result.Predicted,
 			OriginalTag:     result.OriginalTag,
@@ -260,8 +260,8 @@ func cleanTempVoiceFiles(tempVoiceDir string) {
 	}
 }
 
-func (l *LingChatService) ChatHandler(rawMsg []byte) ([]api.Sentence, error) {
-	var msg api.Message
+func (l *LingChatService) ChatHandler(rawMsg []byte) ([]ws.Sentence, error) {
+	var msg ws.Message
 	err := json.Unmarshal(rawMsg, &msg)
 	if err != nil {
 		err = fmt.Errorf("JSON 解析错误: %w", err)
@@ -276,7 +276,7 @@ func (l *LingChatService) ChatHandler(rawMsg []byte) ([]api.Sentence, error) {
 		return nil, err
 	}
 
-	var respSentences []api.Sentence
+	var respSentences []ws.Sentence
 	for _, msg := range resp {
 		msgJSON, err := json.Marshal(msg)
 		if err != nil {

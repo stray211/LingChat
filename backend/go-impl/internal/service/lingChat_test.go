@@ -9,7 +9,7 @@ import (
 
 	"github.com/joho/godotenv"
 
-	"LingChat/api"
+	"LingChat/api/routes/ws"
 	"LingChat/internal/clients/VitsTTS"
 	"LingChat/internal/clients/emotionPredictor"
 	"LingChat/internal/clients/llm"
@@ -45,7 +45,7 @@ func Test_ChatAndParse(t *testing.T) {
 }
 
 func Test_LingChat(t *testing.T) {
-	fmt.Println(service.LingChatByWS(ctx, api.Message{
+	fmt.Println(service.LingChatByWS(ctx, ws.Message{
 		Type:    "message",
 		Content: "你好",
 	},

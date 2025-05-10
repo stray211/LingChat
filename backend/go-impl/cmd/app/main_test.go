@@ -10,7 +10,7 @@ import (
 
 	"github.com/gorilla/websocket"
 
-	"LingChat/api"
+	websocket2 "LingChat/api/routes/ws"
 )
 
 func Test_ws(t *testing.T) {
@@ -46,7 +46,7 @@ func runClient(serverAddr string, clientID int) {
 	log.Printf("Client %d: Connected successfully", clientID)
 
 	// Create unique message for this client
-	msg := api.Message{
+	msg := websocket2.Message{
 		Type:    "test",
 		Content: fmt.Sprintf("Message from client %d", clientID),
 	}

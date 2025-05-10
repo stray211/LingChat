@@ -1,4 +1,4 @@
-package api
+package ws
 
 import (
 	"encoding/json"
@@ -78,6 +78,11 @@ func NewWebSocketHandler(handler MessageHandler) *WebSocketHandler {
 	return &WebSocketHandler{
 		handler: handler,
 	}
+}
+
+// ServeHTTP 实现 http.Handler 接口
+func (s *WebSocketHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	s.HandleWebSocket(w, r)
 }
 
 func (s *WebSocketHandler) HandleWebSocket(w http.ResponseWriter, r *http.Request) {

@@ -5,14 +5,13 @@ import (
 	"encoding/base64"
 	"fmt"
 	"log"
-	"net/http"
 	"time"
 
 	"github.com/joho/godotenv"
 
-	"LingChat/api"
 	"LingChat/api/routes"
 	v1 "LingChat/api/routes/v1"
+	"LingChat/api/routes/ws"
 	"LingChat/internal/clients/VitsTTS"
 	"LingChat/internal/clients/emotionPredictor"
 	"LingChat/internal/clients/llm"
@@ -23,7 +22,6 @@ import (
 )
 
 func main() {
-
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer cancel()
 
@@ -68,24 +66,17 @@ func main() {
 	// init HTTP server
 	chatRoute := v1.NewChatRoute(chatService, userRepo, j)
 	userRoute := v1.NewUserRoute(userService)
-	httpEngine := routes.NewHTTPEngine(conf.Backend.BindAddr+":9876", chatRoute, userRoute)
-	_, err = httpEngine.Run()
-	if err != nil {
+	httpEngine := routes.NewHTTPEngine(
+		// Server Addr
+		fmt.Sprintf("%s:%d", conf.Backend.BindAddr, conf.Backend.Port),
+		// WebSocket Handler
+		ws.NewWebSocketHandler(chatService.ChatHandler),
+		// HTTP REST API routes
+		chatRoute, userRoute,
+	)
+
+	// Start server
+	if _, err := httpEngine.Run(); err != nil {
 		log.Fatal(err)
 	}
-
-	// 创建WebSocket服务器
-	wsServer := api.NewWebSocketHandler(chatService.ChatHandler)
-
-	// 设置路由
-	http.HandleFunc("/", wsServer.HandleWebSocket)
-
-	// 启动服务器
-	serverAddr := fmt.Sprintf("%s:%d", conf.Backend.BindAddr, conf.Backend.Port)
-	log.Printf("WebSocket服务器启动在 %s", serverAddr)
-	if err := http.ListenAndServe(serverAddr, nil); err != nil {
-		log.Fatal("服务器启动失败: ", err)
-	}
-
-	// TODO: 优雅退出没写
 }

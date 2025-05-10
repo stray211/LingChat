@@ -1,12 +1,18 @@
 package routes
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"log"
 	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/sourcegraph/conc"
 )
 
 const (
@@ -36,11 +42,12 @@ type HttpEngine struct {
 	Engine *gin.Engine
 	Addr   string
 
+	wsHandler http.Handler
 	// ChatRouteV1 *v1.ChatRoute
 	routes []Route
 }
 
-func NewHTTPEngine(addr string, routes ...Route) *HttpEngine {
+func NewHTTPEngine(addr string, wsHandler http.Handler, routes ...Route) *HttpEngine {
 
 	engine, err := NewEngine()
 	if err != nil {
@@ -48,8 +55,9 @@ func NewHTTPEngine(addr string, routes ...Route) *HttpEngine {
 	}
 
 	return &HttpEngine{
-		Engine: engine,
-		Addr:   addr,
+		Engine:    engine,
+		Addr:      addr,
+		wsHandler: wsHandler,
 		// ChatRouteV1: chatRoute,
 		routes: routes,
 	}
@@ -61,6 +69,9 @@ type Route interface {
 
 func (h *HttpEngine) RegisterRoutes() {
 	eg := h.Engine.Group("/api")
+
+	// Register WebSocket route
+	h.Engine.GET("/ws", gin.WrapH(h.wsHandler))
 
 	// v := reflect.ValueOf(*h)
 	// for i := 0; i < v.NumField(); i++ {
@@ -87,6 +98,27 @@ func (h *HttpEngine) Run() (*http.Server, error) {
 	}()
 
 	fmt.Printf(banner, h.Addr)
+
+	// 监控结束指令
+	quit := make(chan os.Signal)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+	<-quit
+
+	// 停止服务
+	ctx, cancel := context.WithTimeout(context.Background(), time.Minute*5)
+	defer cancel()
+
+	var wg conc.WaitGroup
+	wg.Go(func() {
+		if err := srv.Shutdown(ctx); err != nil {
+			log.Fatal("Server Shutdown", "err", err)
+		}
+	})
+	if r := wg.WaitAndRecover(); r != nil {
+		log.Fatal("Server Shutdown", "wait err", r.String())
+	}
+
+	log.Println("server exiting")
 
 	return srv, nil
 }
