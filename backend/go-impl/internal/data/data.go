@@ -27,7 +27,7 @@ func NewData(entClient *ent.Client, redisClient *redis.Client) (*Data, func(), e
 
 	cleanup := func() {
 		log.Println("closing the data resources")
-		if err := d.db; err != nil {
+		if err := d.db.Close(); err != nil {
 			log.Fatal(err)
 		}
 	}
