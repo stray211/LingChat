@@ -70,7 +70,7 @@ func main() {
 		// Server Addr
 		fmt.Sprintf("%s:%d", conf.Backend.BindAddr, conf.Backend.Port),
 		// WebSocket Handler
-		ws.NewWebSocketHandler(chatService.ChatHandler),
+		ws.NewWebSocketHandler(ws.NewWebSocketEngine(chatService).LingChatHandler),
 		// HTTP REST API routes
 		chatRoute, userRoute,
 	)

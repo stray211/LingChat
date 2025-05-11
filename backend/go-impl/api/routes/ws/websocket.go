@@ -1,48 +1,70 @@
 package ws
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"log"
-	"net/http"
 
-	"github.com/gorilla/websocket"
+	"LingChat/api/routes/ws/types"
+	"LingChat/internal/service"
 )
 
-// Message 表示预期的 JSON 结构
-type Message struct {
-	Type    string `json:"type"`
-	Content string `json:"content"`
+// WebSocketEngine 管理多个 WebSocket Handler
+type WebSocketEngine struct {
+	LingChatService *service.LingChatService
 }
 
-// Response 表示服务器响应结构
-type Response struct {
-	Type            string `json:"type" yaml:"type"`
-	Emotion         string `json:"emotion" yaml:"emotion"`
-	OriginalTag     string `json:"originalTag" yaml:"originalTag"`
-	Message         string `json:"message" yaml:"message"`
-	MotionText      string `json:"motionText" yaml:"motionText"`
-	AudioFile       string `json:"audioFile" yaml:"audioFile"`
-	OriginalMessage string `json:"originalMessage" yaml:"originalMessage"`
-	IsMultiPart     bool   `json:"isMultiPart" yaml:"isMultiPart"`
-	PartIndex       int    `json:"partIndex" yaml:"partIndex"`
-	TotalParts      int    `json:"totalParts" yaml:"totalParts"`
-	Error           string `json:"error,omitempty"`
+// NewWebSocketEngine 创建新的 WebSocket 服务器
+func NewWebSocketEngine(lingChatService *service.LingChatService) *WebSocketEngine {
+	return &WebSocketEngine{
+		LingChatService: lingChatService,
+	}
 }
 
-type Sentence []byte
+func (s *WebSocketEngine) LingChatHandler(rawMsg []byte) ([]types.RawResponse, error) {
+	var msg types.Message
+	err := json.Unmarshal(rawMsg, &msg)
+	if err != nil {
+		err = fmt.Errorf("JSON 解析错误: %w", err)
+		log.Println(err)
+		return nil, err
+	}
 
-// MessageHandler 定义消息处理接口
-type MessageHandler func([]byte) ([]Sentence, error)
+	switch msg.Type {
+	case "message":
+	case "handshake":
+		log.Printf("handshake with message:\"%s\"\n", msg.Content)
+		return nil, nil
+	case "ping":
+		log.Println("Ping received, Pong")
+		return nil, nil
+	default:
+		return nil, fmt.Errorf("invalid type \"%s\" with message: \"%s\"", msg.Type, msg.Content)
+	}
 
-var upgrader = websocket.Upgrader{
-	ReadBufferSize:  1024,
-	WriteBufferSize: 1024,
-	CheckOrigin:     func(r *http.Request) bool { return true }, // 允许所有来源
+	resp, err := s.LingChatService.LingChat(context.Background(), msg.Content, "", "")
+	if err != nil {
+		err = fmt.Errorf("LingChat error: %w", err)
+		log.Println(err)
+		return nil, err
+	}
+
+	var respSentences []types.RawResponse
+	for _, message := range resp.Messages {
+		msgJSON, err := json.Marshal(message)
+		if err != nil {
+			err = fmt.Errorf("JSON 序列化错误: %w", err)
+			log.Println(err)
+		}
+		respSentences = append(respSentences, msgJSON)
+	}
+
+	return respSentences, nil
 }
 
-var TestHandler MessageHandler = func(rawMsg []byte) ([]Sentence, error) {
-	var msg Message
+func (s *WebSocketEngine) TestHandler(rawMsg []byte) ([]types.RawResponse, error) {
+	var msg types.Message
 	err := json.Unmarshal(rawMsg, &msg)
 	if err != nil {
 		err = fmt.Errorf("JSON 解析错误: %w", err)
@@ -65,73 +87,5 @@ var TestHandler MessageHandler = func(rawMsg []byte) ([]Sentence, error) {
 		log.Println(err)
 		return nil, err
 	}
-	return []Sentence{responseJSON}, nil
-}
-
-// WebSocketHandler 管理 WebSocket 连接
-type WebSocketHandler struct {
-	handler MessageHandler
-}
-
-// NewWebSocketHandler 创建新的 WebSocket 服务器
-func NewWebSocketHandler(handler MessageHandler) *WebSocketHandler {
-	return &WebSocketHandler{
-		handler: handler,
-	}
-}
-
-// ServeHTTP 实现 http.Handler 接口
-func (s *WebSocketHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	s.HandleWebSocket(w, r)
-}
-
-func (s *WebSocketHandler) HandleWebSocket(w http.ResponseWriter, r *http.Request) {
-	// 将 HTTP 连接升级为 WebSocket
-	conn, err := upgrader.Upgrade(w, r, nil)
-	if err != nil {
-		log.Printf("WebSocket升级错误: %v", err)
-		return
-	}
-	defer conn.Close()
-
-	log.Printf("新的WebSocket连接已建立: %s", r.RemoteAddr)
-
-	for {
-		// 读取消息
-		_, rawMessage, err := conn.ReadMessage()
-		if err != nil {
-			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
-				log.Printf("WebSocket连接异常关闭: %v", err)
-			} else {
-				log.Println("读取错误:", err)
-			}
-			break
-		}
-
-		// 处理消息
-		rawResp, err := s.handler(rawMessage)
-		if err != nil {
-			log.Printf("消息处理错误: %v", err)
-			errorResp := Response{
-				Type:  "error",
-				Error: err.Error(),
-			}
-			errorJSON, _ := json.Marshal(errorResp)
-			if err := conn.WriteMessage(websocket.TextMessage, errorJSON); err != nil {
-				log.Printf("发送错误响应失败: %v", err)
-				break
-			}
-			continue
-		}
-
-		// 发送响应
-		for _, msg := range rawResp {
-			if err := conn.WriteMessage(websocket.TextMessage, msg); err != nil {
-				log.Printf("发送响应失败: %v", err)
-				break
-			}
-		}
-	}
-
-	log.Printf("WebSocket连接已关闭: %s", r.RemoteAddr)
+	return []types.RawResponse{responseJSON}, nil
 }

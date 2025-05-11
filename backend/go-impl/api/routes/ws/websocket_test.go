@@ -9,10 +9,12 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
+
+	"LingChat/api/routes/ws/types"
 )
 
 func TestWebSocketServer(t *testing.T) {
-	wsServer := NewWebSocketHandler(TestHandler)
+	wsServer := NewWebSocketHandler(NewWebSocketEngine(nil).TestHandler)
 	// 创建测试服务器
 	server := httptest.NewServer(http.HandlerFunc(wsServer.HandleWebSocket))
 	defer server.Close()
@@ -30,18 +32,18 @@ func TestWebSocketServer(t *testing.T) {
 	// 准备测试用例
 	testCases := []struct {
 		name     string
-		message  Message
-		expected Message
+		message  types.Message
+		expected types.Message
 	}{
 		{
 			name:     "标准消息",
-			message:  Message{Type: "message", Content: "hi"},
-			expected: Message{Type: "message", Content: "hi"},
+			message:  types.Message{Type: "message", Content: "hi"},
+			expected: types.Message{Type: "message", Content: "hi"},
 		},
 		{
 			name:     "其他类型消息",
-			message:  Message{Type: "notification", Content: "test"},
-			expected: Message{Type: "notification", Content: "test"},
+			message:  types.Message{Type: "notification", Content: "test"},
+			expected: types.Message{Type: "notification", Content: "test"},
 		},
 	}
 
@@ -69,7 +71,7 @@ func TestWebSocketServer(t *testing.T) {
 			}
 
 			// 解析响应
-			var receivedMsg Message
+			var receivedMsg types.Message
 			if err := json.Unmarshal(response, &receivedMsg); err != nil {
 				t.Fatalf("JSON 解析错误: %v", err)
 			}

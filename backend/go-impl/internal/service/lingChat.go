@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"log"
 	"os"
@@ -13,7 +12,7 @@ import (
 	"github.com/sashabaranov/go-openai"
 
 	"LingChat/api/routes/v1/response"
-	"LingChat/api/routes/ws"
+	"LingChat/api/routes/ws/types"
 	"LingChat/internal/clients/VitsTTS"
 	"LingChat/internal/clients/emotionPredictor"
 	"LingChat/internal/clients/llm"
@@ -93,27 +92,6 @@ func (l *LingChatService) EmoPredictBatch(ctx context.Context, results []Result)
 	return results
 }
 
-func (l *LingChatService) LingChatByWS(ctx context.Context, msg ws.Message) ([]ws.Response, error) {
-	switch msg.Type {
-	case "message":
-	case "handshake":
-		log.Printf("handshake with message:\"%s\"\n", msg.Content)
-		return nil, nil
-	case "ping":
-		log.Println("Ping received, Pong")
-		return nil, nil
-	default:
-		return nil, fmt.Errorf("invalid type \"%s\" with message: \"%s\"", msg.Type, msg.Content)
-	}
-
-	resp, err := l.LingChat(ctx, msg.Content, "", "")
-	if err != nil {
-		return nil, err
-	}
-
-	return resp.Messages, nil
-}
-
 func (l *LingChatService) LingChat(ctx context.Context, message string, conversationID, prevMessageID string) (*response.CompletionResponse, error) {
 	cleanTempVoiceFiles(l.tempFilePath)
 
@@ -158,10 +136,10 @@ func (l *LingChatService) LingChat(ctx context.Context, message string, conversa
 	}, nil
 }
 
-func (l *LingChatService) CreateResponse(results []Result, userMessage string) []ws.Response {
-	var resp []ws.Response
+func (l *LingChatService) CreateResponse(results []Result, userMessage string) []types.Response {
+	var resp []types.Response
 	for i, result := range results {
-		resp = append(resp, ws.Response{
+		resp = append(resp, types.Response{
 			Type:            "reply",
 			Emotion:         result.Predicted,
 			OriginalTag:     result.OriginalTag,
@@ -258,35 +236,6 @@ func cleanTempVoiceFiles(tempVoiceDir string) {
 			}
 		}
 	}
-}
-
-func (l *LingChatService) ChatHandler(rawMsg []byte) ([]ws.Sentence, error) {
-	var msg ws.Message
-	err := json.Unmarshal(rawMsg, &msg)
-	if err != nil {
-		err = fmt.Errorf("JSON 解析错误: %w", err)
-		log.Println(err)
-		return nil, err
-	}
-
-	resp, err := l.LingChatByWS(context.Background(), msg)
-	if err != nil {
-		err = fmt.Errorf("LingChat error: %w", err)
-		log.Println(err)
-		return nil, err
-	}
-
-	var respSentences []ws.Sentence
-	for _, msg := range resp {
-		msgJSON, err := json.Marshal(msg)
-		if err != nil {
-			err = fmt.Errorf("JSON 序列化错误: %w", err)
-			log.Println(err)
-		}
-		respSentences = append(respSentences, msgJSON)
-	}
-
-	return respSentences, nil
 }
 
 func (l *LingChatService) GetChatHistory(ctx context.Context) []openai.ChatCompletionMessage {

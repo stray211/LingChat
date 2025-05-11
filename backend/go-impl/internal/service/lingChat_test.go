@@ -8,12 +8,13 @@ import (
 	"testing"
 
 	"github.com/joho/godotenv"
+	"github.com/sashabaranov/go-openai"
 
-	"LingChat/api/routes/ws"
 	"LingChat/internal/clients/VitsTTS"
 	"LingChat/internal/clients/emotionPredictor"
 	"LingChat/internal/clients/llm"
 	"LingChat/internal/config"
+	"LingChat/internal/data"
 )
 
 var conf *config.Config
@@ -33,11 +34,29 @@ func init() {
 	vitsTTSClient := VitsTTS.NewClient(conf.Vits.APIURL, conf.TempDirs.VoiceDir, 0)
 	llmClient := llm.NewLLMClient(conf.Chat.BaseURL, conf.Chat.APIKey)
 
-	service = NewLingChatService(emotionPredictorClient, vitsTTSClient, llmClient, conf.TempDirs.VoiceDir)
+	// init Data & Repos
+	entClient, err := data.NewEntClient(ctx, conf.Data.DataBase.Driver, conf.Data.DataBase.Source, conf.Data.DataBase.AutoMigrate)
+	if err != nil {
+		log.Fatal(err)
+	}
+	d, _, err := data.NewData(entClient, nil)
+	conversationRepo := data.NewConversationRepo(d)
+	legacyTempChatContext := data.NewLegacyTempChatContext()
+
+	conversationService := NewConversationService(conversationRepo, legacyTempChatContext, conf.Chat.Model)
+	service = NewLingChatService(emotionPredictorClient, vitsTTSClient, llmClient, conversationService, conf.Chat.Model, conf.TempDirs.VoiceDir)
 }
 
 func Test_ChatAndParse(t *testing.T) {
-	rawResp, err := service.llmClient.Chat(ctx, "你好", "deepseek-chat")
+	rawResp, err := service.llmClient.Chat(ctx, []openai.ChatCompletionMessage{
+		{
+			Role:    "system",
+			Content: data.SystemPrompt,
+		}, {
+			Role:    "user",
+			Content: "你好",
+		},
+	}, "deepseek-chat")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -45,10 +64,7 @@ func Test_ChatAndParse(t *testing.T) {
 }
 
 func Test_LingChat(t *testing.T) {
-	fmt.Println(service.LingChatByWS(ctx, ws.Message{
-		Type:    "message",
-		Content: "你好",
-	},
-		"deepseek-chat",
+	fmt.Println(service.LingChat(ctx, "你好",
+		"", "",
 	))
 }
