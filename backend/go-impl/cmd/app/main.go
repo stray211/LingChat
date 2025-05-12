@@ -65,7 +65,7 @@ func main() {
 
 	// init HTTP server
 	chatRoute := v1.NewChatRoute(chatService, userRepo, j)
-	userRoute := v1.NewUserRoute(userService)
+	userRoute := v1.NewUserRoute(userService, userRepo, j)
 	httpEngine := routes.NewHTTPEngine(
 		// Server Addr
 		fmt.Sprintf("%s:%d", conf.Backend.BindAddr, conf.Backend.Port),

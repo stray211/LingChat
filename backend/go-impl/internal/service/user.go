@@ -22,6 +22,8 @@ var (
 	ErrUserExists = errors.New("用户已存在")
 	// ErrEmailExists 邮箱已存在错误
 	ErrEmailExists = errors.New("邮箱已存在")
+	// ErrSamePassword 新密码与原密码相同错误
+	ErrSamePassword = errors.New("新密码不能与原密码相同")
 )
 
 // UserService 用户服务接口
@@ -30,6 +32,8 @@ type UserService interface {
 	Register(ctx context.Context, user *data.User) (*ent.User, string, error)
 	// Login 登录
 	Login(ctx context.Context, user *data.User) (*ent.User, string, error)
+	// ChangePassword 修改密码
+	ChangePassword(ctx context.Context, userID int64, oldPassword, newPassword string) error
 }
 
 type userService struct {
@@ -147,6 +151,40 @@ func (s *userService) login(ctx context.Context, username, password string) (*en
 	}
 
 	return user, nil
+}
+
+// ChangePassword 修改密码
+func (s *userService) ChangePassword(ctx context.Context, userID int64, oldPassword, newPassword string) error {
+	// 验证用户是否存在
+	_, err := s.ur.GetByID(ctx, userID)
+	if err != nil {
+		return ErrUserNotFound
+	}
+
+	// 获取用户当前密码哈希值
+	hashedPassword, err := s.ur.GetPassword(ctx, userID)
+	if err != nil {
+		return err
+	}
+
+	// 验证原密码
+	if err := verifyPassword(hashedPassword, oldPassword); err != nil {
+		return ErrInvalidPassword
+	}
+
+	// 验证新密码不能与原密码相同
+	if oldPassword == newPassword {
+		return ErrSamePassword
+	}
+
+	// 对新密码进行哈希处理
+	newHashedPassword, err := hashPassword(newPassword)
+	if err != nil {
+		return err
+	}
+
+	// 更新密码
+	return s.ur.UpdatePassword(ctx, userID, newHashedPassword)
 }
 
 // hashPassword 加密密码
