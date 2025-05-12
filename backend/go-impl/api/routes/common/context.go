@@ -9,7 +9,8 @@ import (
 )
 
 const (
-	CurrentUserInfoKey = "current-user-info"
+	CurrentUserInfoKey          = "current-user-info"
+	UseLegacyTempChatContextKey = "use-legacy-temp-chat-context"
 )
 
 func GetCurrentUserInfo(c *gin.Context) *ent.User {
@@ -34,4 +35,16 @@ func GetUserFromContext(ctx context.Context) *ent.User {
 	}
 
 	return user
+}
+
+func UseLegacyTempChatContext(ctx context.Context) bool {
+	val := ctx.Value(UseLegacyTempChatContextKey)
+	if val == nil {
+		return false
+	}
+	value, ok := val.(bool)
+	if !ok {
+		return false
+	}
+	return value
 }

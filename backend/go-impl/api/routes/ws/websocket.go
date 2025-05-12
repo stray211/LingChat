@@ -5,7 +5,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"time"
 
+	"LingChat/api/routes/common"
 	"LingChat/api/routes/ws/types"
 	"LingChat/internal/service"
 )
@@ -43,7 +45,16 @@ func (s *WebSocketEngine) LingChatHandler(rawMsg []byte) ([]types.RawResponse, e
 		return nil, fmt.Errorf("invalid type \"%s\" with message: \"%s\"", msg.Type, msg.Content)
 	}
 
-	resp, err := s.LingChatService.LingChat(context.Background(), msg.Content, "", "")
+	ctx, cancel := context.WithTimeout(
+		context.WithValue(
+			context.Background(),
+			common.UseLegacyTempChatContextKey, true,
+		),
+		2*time.Minute,
+	)
+	defer cancel()
+
+	resp, err := s.LingChatService.LingChat(ctx, msg.Content, "", "")
 	if err != nil {
 		err = fmt.Errorf("LingChat error: %w", err)
 		log.Println(err)

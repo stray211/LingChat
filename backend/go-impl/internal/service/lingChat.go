@@ -11,11 +11,14 @@ import (
 
 	"github.com/sashabaranov/go-openai"
 
+	"LingChat/api/routes/common"
 	"LingChat/api/routes/v1/response"
 	"LingChat/api/routes/ws/types"
 	"LingChat/internal/clients/VitsTTS"
 	"LingChat/internal/clients/emotionPredictor"
 	"LingChat/internal/clients/llm"
+	"LingChat/internal/data/ent/ent"
+	"LingChat/internal/data/ent/ent/conversationmessage"
 )
 
 type LingChatService struct {
@@ -44,6 +47,110 @@ func NewLingChatService(
 		ConfigModel:            configModel,
 		tempFilePath:           path,
 	}
+}
+
+func (l *LingChatService) LingChat(ctx context.Context, message string, conversationID, prevMessageID string) (*response.CompletionResponse, error) {
+	cleanTempVoiceFiles(l.tempFilePath)
+
+	useLegacyTempChatContext := common.UseLegacyTempChatContext(ctx)
+	var (
+		conv       *ent.Conversation
+		userMsgObj *ent.ConversationMessage
+		messages   []openai.ChatCompletionMessage
+		respMsg    *ent.ConversationMessage
+		err        error
+	)
+
+	if useLegacyTempChatContext {
+		l.conversationService.legacyTempChatContext.AddMessage(openai.ChatCompletionMessage{
+			Role:    string(conversationmessage.RoleUser),
+			Content: message,
+		})
+		messages = l.conversationService.legacyTempChatContext.DumpMessage()
+	} else {
+		// 记录会话和消息
+		conv, userMsgObj, err = l.conversationService.RecordConversationAndMessage(ctx, message, conversationID, prevMessageID)
+		if err != nil {
+			return nil, err
+		}
+
+		// 获取消息链
+		messages, err = l.conversationService.GetChatContext(ctx, userMsgObj.ID)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	// 调用LLM获取回复
+	rawLLMResp, err := l.llmClient.Chat(ctx, messages, l.ConfigModel)
+	if err != nil {
+		err = fmt.Errorf("LLM Chat error: %w", err)
+		return nil, err
+	}
+
+	if useLegacyTempChatContext {
+		l.conversationService.legacyTempChatContext.AddMessage(openai.ChatCompletionMessage{
+			Role:    string(conversationmessage.RoleAssistant),
+			Content: rawLLMResp,
+		})
+	} else {
+		// 将助手回复保存到数据库
+		respMsg, err = l.conversationService.SaveAssistantMessage(ctx, userMsgObj.ID, rawLLMResp)
+		if err != nil {
+			log.Printf("保存助手回复失败: %s", err)
+			return nil, err
+		}
+	}
+
+	emotionSegments := AnalyzeEmotions(rawLLMResp, l.tempFilePath, "wav")
+
+	// TODO: 这里两条会耦合使用emotionSegments的字段，后面要改
+	_, err = l.GenerateVoice(ctx, emotionSegments, true)
+	if err != nil {
+		log.Printf("GenerateVoice error: %s", err)
+	}
+	emotionSegments = l.EmoPredictBatch(ctx, emotionSegments)
+
+	convID := 0
+	respMsgID := 0
+	if conv != nil {
+		convID = int(conv.ID)
+	}
+	if respMsg != nil {
+		respMsgID = int(respMsg.ID)
+	}
+	return &response.CompletionResponse{
+		ConversationID: strconv.Itoa(convID),
+		MessageID:      strconv.Itoa(respMsgID),
+		Messages:       l.CreateResponse(emotionSegments, message),
+	}, nil
+}
+
+func (l *LingChatService) GetChatHistory(ctx context.Context) []openai.ChatCompletionMessage {
+	return l.conversationService.GetChatHistory(ctx)
+}
+
+func (l *LingChatService) LoadChatHistory(ctx context.Context, msg []openai.ChatCompletionMessage) []openai.ChatCompletionMessage {
+	return l.conversationService.LoadChatHistory(ctx, msg)
+}
+
+func (l *LingChatService) CreateResponse(results []Result, userMessage string) []types.Response {
+	var resp []types.Response
+	for i, result := range results {
+		resp = append(resp, types.Response{
+			Type:            "reply",
+			Emotion:         result.Predicted,
+			OriginalTag:     result.OriginalTag,
+			Message:         result.FollowingText,
+			MotionText:      result.MotionText,
+			AudioFile:       filepath.Base(result.VoiceFile),
+			OriginalMessage: userMessage,
+			IsMultiPart:     true,
+			PartIndex:       i,
+			TotalParts:      len(results),
+		})
+	}
+	return resp
 }
 
 func (l *LingChatService) EmoPredictBatch(ctx context.Context, results []Result) []Result {
@@ -90,69 +197,6 @@ func (l *LingChatService) EmoPredictBatch(ctx context.Context, results []Result)
 		results[index].Predicted = result.Predicted
 	}
 	return results
-}
-
-func (l *LingChatService) LingChat(ctx context.Context, message string, conversationID, prevMessageID string) (*response.CompletionResponse, error) {
-	cleanTempVoiceFiles(l.tempFilePath)
-
-	// 记录会话和消息
-	conv, userMsgObj, err := l.conversationService.RecordConversationAndMessage(ctx, message, conversationID, prevMessageID)
-	if err != nil {
-		return nil, err
-	}
-
-	// 获取消息链
-	messages, err := l.conversationService.GetChatContext(ctx, userMsgObj.ID)
-	if err != nil {
-		return nil, err
-	}
-
-	// 调用LLM获取回复
-	rawLLMResp, err := l.llmClient.Chat(ctx, messages, l.ConfigModel)
-	if err != nil {
-		err = fmt.Errorf("LLM Chat error: %w", err)
-		return nil, err
-	}
-
-	// 将助手回复保存到数据库
-	respMsg, err := l.conversationService.SaveAssistantMessage(ctx, userMsgObj.ID, rawLLMResp)
-	if err != nil {
-		log.Printf("保存助手回复失败: %s", err)
-	}
-
-	emotionSegments := AnalyzeEmotions(rawLLMResp, l.tempFilePath, "wav")
-
-	// TODO: 这里两条会耦合使用emotionSegments的字段，后面要改
-	_, err = l.GenerateVoice(ctx, emotionSegments, true)
-	if err != nil {
-		log.Printf("GenerateVoice error: %s", err)
-	}
-	emotionSegments = l.EmoPredictBatch(ctx, emotionSegments)
-
-	return &response.CompletionResponse{
-		ConversationID: strconv.Itoa(int(conv.ID)),
-		MessageID:      strconv.Itoa(int(respMsg.ID)),
-		Messages:       l.CreateResponse(emotionSegments, message),
-	}, nil
-}
-
-func (l *LingChatService) CreateResponse(results []Result, userMessage string) []types.Response {
-	var resp []types.Response
-	for i, result := range results {
-		resp = append(resp, types.Response{
-			Type:            "reply",
-			Emotion:         result.Predicted,
-			OriginalTag:     result.OriginalTag,
-			Message:         result.FollowingText,
-			MotionText:      result.MotionText,
-			AudioFile:       filepath.Base(result.VoiceFile),
-			OriginalMessage: userMessage,
-			IsMultiPart:     true,
-			PartIndex:       i,
-			TotalParts:      len(results),
-		})
-	}
-	return resp
 }
 
 func (l *LingChatService) GenerateVoice(ctx context.Context, textSegments []Result, saveFile bool) ([][]byte, error) {
@@ -236,12 +280,4 @@ func cleanTempVoiceFiles(tempVoiceDir string) {
 			}
 		}
 	}
-}
-
-func (l *LingChatService) GetChatHistory(ctx context.Context) []openai.ChatCompletionMessage {
-	return l.conversationService.GetChatHistory(ctx)
-}
-
-func (l *LingChatService) LoadChatHistory(ctx context.Context, msg []openai.ChatCompletionMessage) []openai.ChatCompletionMessage {
-	return l.conversationService.LoadChatHistory(ctx, msg)
 }
