@@ -13,14 +13,18 @@ services:
     networks:
       - app-network
 
-  node-frontend:
+  nginx:
     build:
       context: .
-      dockerfile: Dockerfile-node
+      dockerfile: Dockerfile-nginx
     ports:
       - "3000:3000"
     volumes:
-      - ./volume/data:/app/public/audio
+      # 可选：如果你想在开发时实时更新 public 目录下的内容而无需重建镜像
+      # 请确保 ./public 目录存在
+      - ./volume/frontend/public:/usr/share/nginx/html/public:ro
+      # 可选：如果你想在开发时实时更新 nginx 配置而无需重建镜像
+      - ./volume/frontend/nginx.conf:/etc/nginx/conf.d/default.conf:ro
     depends_on:
       - golang-backend
     env_file:

@@ -1,0 +1,16 @@
+# 使用官方 Nginx 镜像作为基础镜像
+FROM nginx:alpine
+
+# 删除默认的 Nginx 网站内容
+RUN rm -rf /usr/share/nginx/html/*
+
+# 将本地的 public 文件夹复制到 Nginx 的 html 目录下
+COPY ./frontend/public/ /usr/share/nginx/html/public/
+
+# 将自定义的 nginx.conf 复制到 Nginx 配置目录
+COPY ./frontend/nginx.conf /etc/nginx/conf.d/default.conf
+
+# 暴露 80 端口
+EXPOSE 3000
+
+# Nginx 默认的启动命令是 nginx -g 'daemon off;'，这里不需要 CMD，除非你想覆盖它
