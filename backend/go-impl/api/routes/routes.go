@@ -13,13 +13,15 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/sourcegraph/conc"
+	swaggerFiles "github.com/swaggo/files"
+	ginSwagger "github.com/swaggo/gin-swagger"
 )
 
 const (
 	banner = `
     __    _             ________          __ 
-   / /   (_)___  ____ _/ ____/ /_  ____ _/ /_
-  / /   / / __ \/ __ ·/ /   / __ \/ __ ·/ __/
+   / /   (_)___  ____  / ____/ /_  ____ _/ /_
+  / /   / / __ \/ __ \/ /   / __ \/ __ \/ __/
  / /___/ / / / / /_/ / /___/ / / / /_/ / /_  
 /_____/_/_/ /_/\__, /\____/_/ /_/\__,_/\__/  
               /____/                         
@@ -72,6 +74,14 @@ func (h *HttpEngine) RegisterRoutes() {
 
 	// Register WebSocket route
 	h.Engine.GET("/ws", gin.WrapH(h.wsHandler))
+
+	// Serve openapi.yaml
+	h.Engine.StaticFile("/openapi.yaml", "openapi.yaml")
+	// Swagger UI, pointing to the /openapi.yaml endpoint
+	h.Engine.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler,
+		ginSwagger.URL("/openapi.yaml"),
+		ginSwagger.DefaultModelsExpandDepth(-1), // Hide models by default
+	))
 
 	// v := reflect.ValueOf(*h)
 	// for i := 0; i < v.NumField(); i++ {

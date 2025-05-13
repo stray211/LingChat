@@ -27,10 +27,10 @@ WORKDIR /app
 # Copy the binary from builder
 COPY --from=builder /app/main .
 COPY --from=builder /app/.env .
+COPY openapi.yaml .
 
 # Expose port 8765
 EXPOSE 8765
-EXPOSE 9876
 
 # Command to run the executable
 CMD ["./main"] 
