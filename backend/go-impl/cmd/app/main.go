@@ -64,7 +64,7 @@ func main() {
 	chatService := service.NewLingChatService(emotionPredictorClient, vitsTTSClient, llmClient, conversationService, conf.Chat.Model, conf.TempDirs.VoiceDir)
 
 	// init HTTP server
-	chatRoute := v1.NewChatRoute(chatService, userRepo, j)
+	chatRoute := v1.NewChatRoute(chatService, conversationService, userRepo, j)
 	userRoute := v1.NewUserRoute(userService, userRepo, j)
 	httpEngine := routes.NewHTTPEngine(
 		// Server Addr

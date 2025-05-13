@@ -2,6 +2,7 @@ package v1
 
 import (
 	"net/http"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
 	"github.com/sashabaranov/go-openai"
@@ -15,16 +16,23 @@ import (
 )
 
 type ChatRoute struct {
-	lingChatService *service.LingChatService
-	userRepo        data.UserRepo
-	jwt             *jwt.JWT
+	lingChatService     *service.LingChatService
+	conversationService *service.ConversationService
+	userRepo            data.UserRepo
+	jwt                 *jwt.JWT
 }
 
-func NewChatRoute(lingChatService *service.LingChatService, userRepo data.UserRepo, jwt *jwt.JWT) *ChatRoute {
+func NewChatRoute(
+	lingChatService *service.LingChatService,
+	conversationService *service.ConversationService,
+	userRepo data.UserRepo,
+	jwt *jwt.JWT,
+) *ChatRoute {
 	return &ChatRoute{
-		lingChatService: lingChatService,
-		userRepo:        userRepo,
-		jwt:             jwt,
+		lingChatService:     lingChatService,
+		conversationService: conversationService,
+		userRepo:            userRepo,
+		jwt:                 jwt,
 	}
 }
 
@@ -32,8 +40,9 @@ func (c *ChatRoute) RegisterRoute(r *gin.RouterGroup) {
 	rg := r.Group("/v1/chat")
 	{
 		rg.POST("/completion", middleware.TokenAuth(false, c.jwt, c.userRepo), c.chatCompletion)
-		rg.GET("/history", middleware.TokenAuth(false, c.jwt, c.userRepo), c.getChatHistory)
-		rg.POST("/history", middleware.TokenAuth(false, c.jwt, c.userRepo), c.loadChatHistory)
+		rg.GET("/history/list", middleware.TokenAuth(false, c.jwt, c.userRepo), c.listConversations)
+		rg.GET("/history/detail", middleware.TokenAuth(false, c.jwt, c.userRepo), c.getChatHistory)
+		rg.PUT("/history", middleware.TokenAuth(false, c.jwt, c.userRepo), c.loadChatHistory)
 	}
 }
 
@@ -64,9 +73,69 @@ func (c *ChatRoute) chatCompletion(ctx *gin.Context) {
 	})
 }
 
+func (c *ChatRoute) listConversations(ctx *gin.Context) {
+	// 获取分页参数
+	page := ctx.DefaultQuery("page", "1")
+	pageSize := ctx.DefaultQuery("page_size", "10")
+
+	pageNum, err := strconv.Atoi(page)
+	if err != nil || pageNum < 1 {
+		pageNum = 1
+	}
+
+	pageSizeNum, err := strconv.Atoi(pageSize)
+	if err != nil || pageSizeNum < 1 {
+		pageSizeNum = 10
+	}
+
+	// 调用Service层处理业务逻辑
+	result, err := c.conversationService.ListConversations(ctx, pageNum, pageSizeNum)
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{
+			"code": http.StatusInternalServerError,
+			"msg":  err.Error(),
+		})
+		return
+	}
+
+	ctx.JSON(http.StatusOK, gin.H{
+		"code": http.StatusOK,
+		"data": result,
+	})
+}
+
 func (c *ChatRoute) getChatHistory(ctx *gin.Context) {
-	history := c.lingChatService.GetChatHistory(ctx)
-	ctx.JSON(http.StatusOK, history)
+	// 获取conversationID参数
+	conversationID := ctx.Query("conversation_id")
+
+	// 获取分页参数
+	page := ctx.DefaultQuery("page", "1")
+	pageSize := ctx.DefaultQuery("page_size", "20")
+
+	pageNum, err := strconv.Atoi(page)
+	if err != nil || pageNum < 1 {
+		pageNum = 1
+	}
+
+	pageSizeNum, err := strconv.Atoi(pageSize)
+	if err != nil || pageSizeNum < 1 {
+		pageSizeNum = 20
+	}
+
+	// 调用Service层获取会话详情
+	result, err := c.conversationService.GetConversationDetail(ctx, conversationID, pageNum, pageSizeNum)
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{
+			"code": http.StatusInternalServerError,
+			"msg":  err.Error(),
+		})
+		return
+	}
+
+	ctx.JSON(http.StatusOK, gin.H{
+		"code": http.StatusOK,
+		"data": result,
+	})
 }
 
 func (c *ChatRoute) loadChatHistory(ctx *gin.Context) {
