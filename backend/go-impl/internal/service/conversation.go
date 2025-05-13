@@ -77,7 +77,7 @@ func (s *ConversationService) RecordConversationAndMessage(ctx context.Context, 
 		userMsgObj = userMsgObjs[len(userMsgObjs)-1]
 
 	case conversationID != "" && prevMessageID == "":
-		// 有对话ID但没有前一条消息ID，在对话末尾添加
+		// 有对话ID但没有前一条消息ID，在此对话最新消息后追加
 		convID, err := strconv.ParseInt(conversationID, 10, 64)
 		if err != nil {
 			return nil, nil, fmt.Errorf("无效的对话ID: %w", err)

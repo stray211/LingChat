@@ -1,0 +1,627 @@
+openapi: 3.0.0
+info:
+  title: LingChat API
+  version: v1
+  description: API for LingChat application, providing user authentication, chat functionalities, and WebSocket communication.
+servers:
+  - url: /api
+    description: Main API prefix
+
+security:
+  - bearerAuth: [ ]
+  - cookieAuth: [ ]
+
+paths:
+  /v1/user/register:
+    post:
+      summary: User Registration
+      tags:
+        - User
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserRequest'
+      responses:
+        '200':
+          description: Registration successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserAuthResponse'
+          headers:
+            Set-Cookie:
+              schema:
+                type: string
+                example: token=jwtstring; Path=/; HttpOnly
+              description: Sets JWT token in cookie.
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /v1/user/login:
+    post:
+      summary: User Login or Auto-Register
+      description: |
+        Logs in a user using provided username and password.
+        Special behavior: If the request body is empty, or username/password are missing,
+        a new guest user account will be automatically created with a UUID
+        as the username and an empty password, and then logged in.
+      tags:
+        - User
+      requestBody:
+        description: User credentials (username, password). Optional due to auto-register behavior.
+        required: false # Allows empty body
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest' # Changed from UserRequest
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserAuthResponse'
+          headers:
+            Set-Cookie:
+              schema:
+                type: string
+                example: token=jwtstring; Path=/; HttpOnly; Max-Age=604800
+              description: Sets JWT token in cookie.
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /v1/user/password:
+    post:
+      summary: Change User Password
+      tags:
+        - User
+      security:
+        - bearerAuth: [ ]
+        - cookieAuth: [ ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChangePasswordRequest'
+      responses:
+        '200':
+          description: Password changed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GeneralSuccessResponse'
+        '400':
+          description: Invalid request or invalid old password
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized (user not logged in or token invalid)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /v1/chat/completion:
+    post:
+      summary: Chat Completion
+      description: |
+        Handles chat message completion with the AI model. The behavior depends on the provided `ConversationID` and `PrevMessageID`:
+        1.  **Neither `ConversationID` nor `PrevMessageID` are provided (or are empty strings):**
+            A new conversation will be created, and the new message will be the first message in this new conversation.
+        2.  **`ConversationID` is provided, but `PrevMessageID` is not (or is an empty string):**
+            The new message will be appended as the latest message to the specified `ConversationID`.
+            The system will verify that the conversation either belongs to the current authenticated user or has a user ID of 0 (indicating a public or system-level conversation accessible by anyone).
+        3.  **`PrevMessageID` is provided (the value of `ConversationID` is ignored in this case if also provided):**
+            The new message will be appended directly after the message specified by `PrevMessageID`.
+            The system will verify that the conversation containing the `PrevMessageID` either belongs to the current authenticated user or has a user ID of 0.
+
+        In cases 2 and 3, if the ownership/accessibility check fails, an error will be returned.
+      tags:
+        - Chat
+      security:
+        - bearerAuth: [ ]
+        - cookieAuth: [ ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChatCompletionRequest'
+      responses:
+        '200':
+          description: Chat completion successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChatCompletionResponse'
+        '400':
+          description: Invalid request format
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse' # Uses "error" key
+        '500':
+          description: Failed to process chat request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse' # Uses "error" key
+
+  /v1/chat/history/list:
+    get:
+      summary: List User Conversations
+      tags:
+        - Chat History
+      security:
+        - bearerAuth: [ ]
+        - cookieAuth: [ ]
+      parameters:
+        - name: page
+          in: query
+          description: Page number for pagination.
+          required: false
+          schema:
+            type: integer
+            default: 1
+        - name: page_size
+          in: query
+          description: Number of items per page.
+          required: false
+          schema:
+            type: integer
+            default: 10
+      responses:
+        '200':
+          description: Successfully retrieved conversation list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConversationListAPIResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /v1/chat/history/detail:
+    get:
+      summary: Get Conversation Details and Messages
+      tags:
+        - Chat History
+      security:
+        - bearerAuth: [ ]
+        - cookieAuth: [ ]
+      parameters:
+        - name: conversation_id
+          in: query
+          description: ID of the conversation to retrieve.
+          required: true
+          schema:
+            type: string
+        - name: page
+          in: query
+          description: Page number for message pagination.
+          required: false
+          schema:
+            type: integer
+            default: 1
+        - name: page_size
+          in: query
+          description: Number of messages per page.
+          required: false
+          schema:
+            type: integer
+            default: 20
+      responses:
+        '200':
+          description: Successfully retrieved conversation details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConversationDetailAPIResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /v1/chat/history:
+    put:
+      summary: Load Chat History
+      description: Loads a given set of messages as chat history, likely to prime a new conversation or restore state. The exact behavior of how this interacts with existing conversations or creates new ones needs clarification from service logic.
+      tags:
+        - Chat History
+      security:
+        - bearerAuth: [ ]
+        - cookieAuth: [ ]
+      requestBody:
+        description: An array of chat messages following the OpenAI format.
+        required: true
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: '#/components/schemas/OpenAIChatCompletionMessage'
+      responses:
+        '200':
+          description: Chat history loaded successfully
+          content:
+            application/json:
+              schema:
+                # The actual response for this is unclear from `c.lingChatService.LoadChatHistory(ctx, messages)`
+                # and `ctx.JSON(http.StatusOK, resp)`. Assuming it's similar to a completion response.
+                $ref: '#/components/schemas/LoadHistoryResponse'
+        '400':
+          description: Invalid chat history format
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse' # Uses "error" key
+
+  /ws:
+    servers:
+      - url: /
+        description: WebSocket connection path (no /api prefix)
+    get:
+      summary: WebSocket Connection
+      description: |
+        Upgrades the HTTP connection to a WebSocket for real-time bidirectional communication.
+        Client sends messages in JSON format: `{"type": "some_type", "content": "actual_message_payload"}`
+        Server responds with messages in JSON format, typically one or more `WebSocketOutgoingMessage` objects per client message.
+      tags:
+        - WebSocket
+      # OpenAPI 3.0 does not fully support WebSockets. This describes the upgrade handshake.
+      # For actual message formats, refer to components/schemas/WebSocketIncomingMessage and WebSocketOutgoingMessage.
+      responses:
+        '101':
+          description: Switching Protocols. Connection will be upgraded to WebSocket.
+        '400':
+          description: WebSocket upgrade failed.
+
+
+components:
+  schemas:
+    UserRequest:
+      type: object
+      properties:
+        username:
+          type: string
+          description: Username for registration or login.
+        password:
+          type: string
+          description: Password for registration or login.
+        email:
+          type: string
+          format: email
+          description: Email for registration.
+      required:
+        - username
+        - password
+
+    LoginRequest:
+      type: object
+      properties:
+        username:
+          type: string
+          description: Username for login. Optional; if empty/missing with password, a new UUID user is created.
+        password:
+          type: string
+          description: Password for login. Optional; if empty/missing with username, a new UUID user is created.
+
+    ChangePasswordRequest:
+      type: object
+      properties:
+        old_password:
+          type: string
+          description: Current password of the user.
+        new_password:
+          type: string
+          description: New password to set for the user.
+      required:
+        - old_password
+        - new_password
+
+    UserResponseData:
+      type: object
+      properties:
+        user_id:
+          type: integer
+          format: int64
+          description: User ID.
+        username:
+          type: string
+          description: Username.
+        email:
+          type: string
+          format: email
+          description: User email.
+        token:
+          type: string
+          description: JWT token for authentication.
+
+    UserAuthResponse:
+      type: object
+      properties:
+        code:
+          type: integer
+          example: 200
+        msg:
+          type: string
+          example: "Operation successful"
+        data:
+          $ref: '#/components/schemas/UserResponseData'
+
+    GeneralSuccessResponse:
+      type: object
+      properties:
+        code:
+          type: integer
+          example: 200
+        msg:
+          type: string
+          example: "Operation successful"
+
+    ErrorResponse:
+      type: object
+      properties:
+        code:
+          type: integer
+          description: HTTP status code or custom error code.
+        msg:
+          type: string
+          description: Error message.
+        error: # Some error responses use 'error' key
+          type: string
+          description: Error message.
+
+
+    ChatCompletionRequest:
+      type: object
+      properties:
+        message:
+          type: string
+          description: The user's message. Must not be empty.
+          minLength: 1
+        conversation_id:
+          type: string
+          description: ID of the ongoing conversation (optional, new one created if empty).
+        prev_message_id:
+          type: string
+          description: ID of the previous message in the conversation (optional).
+
+    WebSocketMessageContent: # Based on ws/types/data.go Response struct
+      type: object
+      properties:
+        type:
+          type: string
+          description: Type of the message/response.
+        emotion:
+          type: string
+          description: Detected emotion.
+        originalTag:
+          type: string
+          description: Original tag.
+        message:
+          type: string
+          description: The main message content.
+        motionText:
+          type: string
+          description: Text for motion/animation.
+        audioFile:
+          type: string
+          description: Path or URL to the generated audio file.
+        originalMessage:
+          type: string
+          description: The original user message that this response is for.
+        isMultiPart:
+          type: boolean
+          description: Whether the response is part of a multi-part message.
+        partIndex:
+          type: integer
+          description: Index of this part in a multi-part message.
+        totalParts:
+          type: integer
+          description: Total number of parts in a multi-part message.
+        error:
+          type: string
+          nullable: true
+          description: Error message if any.
+
+    CompletionResponseData:
+      type: object
+      properties:
+        conversation_id:
+          type: string
+        message_id:
+          type: string
+        messages:
+          type: array
+          items:
+            $ref: '#/components/schemas/WebSocketMessageContent' # Reusing this as it's the core message structure
+
+    ChatCompletionResponse:
+      type: object
+      properties:
+        code:
+          type: integer
+          example: 200
+        data:
+          $ref: '#/components/schemas/CompletionResponseData'
+
+    ConversationItem:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Conversation ID.
+        title:
+          type: string
+          description: Title of the conversation.
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        latest_message_id:
+          type: string
+          nullable: true
+
+    ConversationListResponseData:
+      type: object
+      properties:
+        conversations:
+          type: array
+          items:
+            $ref: '#/components/schemas/ConversationItem'
+        total:
+          type: integer
+          description: Total number of conversations.
+
+    ConversationListAPIResponse:
+      type: object
+      properties:
+        code:
+          type: integer
+          example: 200
+        data:
+          $ref: '#/components/schemas/ConversationListResponseData'
+
+    ConversationMessageItem:
+      type: object
+      properties:
+        id:
+          type: string
+        conversation_id:
+          type: string
+        role:
+          type: string
+          enum: [ user, assistant, system ] # Assuming standard roles
+        content:
+          type: string
+        model:
+          type: string
+          nullable: true
+        status:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+
+    ConversationDetailResponseData:
+      type: object
+      properties:
+        conversation:
+          $ref: '#/components/schemas/ConversationItem'
+        messages:
+          type: array
+          items:
+            $ref: '#/components/schemas/ConversationMessageItem'
+        total:
+          type: integer
+          description: Total number of messages in this conversation.
+
+    ConversationDetailAPIResponse:
+      type: object
+      properties:
+        code:
+          type: integer
+          example: 200
+        data:
+          $ref: '#/components/schemas/ConversationDetailResponseData'
+
+    # From go-openai, used in PUT /history
+    OpenAIChatCompletionMessage:
+      type: object
+      properties:
+        Role:
+          type: string
+          description: "The role of the author of this message."
+        Content:
+          type: string
+          description: "The contents of the message."
+        Name:
+          type: string
+          nullable: true
+          description: "The name of the author of this message."
+      required:
+        - Role
+        - Content
+
+    LoadHistoryResponse: # Assuming it returns some confirmation or the loaded history summary
+      type: object
+      properties:
+        # Define based on actual service.LingChatService.LoadChatHistory response
+        # For now, a generic success. This part is a bit unclear from the code alone.
+        conversation_id:
+          type: string
+        message_id:
+          type: string
+        messages:
+          type: array
+          items:
+            $ref: '#/components/schemas/WebSocketMessageContent'
+
+
+    # WebSocket specific schemas
+    WebSocketIncomingMessage: # Based on ws/types/data.go Message struct
+      type: object
+      properties:
+        type:
+          type: string
+          description: Type of the message (e.g., "chat", "ping").
+        content:
+          type: string
+          description: Content of the message.
+      required:
+        - type
+        - content
+
+    WebSocketOutgoingMessage: # This is effectively WebSocketMessageContent
+      $ref: '#/components/schemas/WebSocketMessageContent'
+
+
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: token
+      description: "Authentication via a JWT Bearer token passed in a cookie named 'token'."
