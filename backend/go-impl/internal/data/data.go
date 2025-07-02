@@ -2,12 +2,16 @@ package data
 
 import (
 	"context"
+	"database/sql"
 	"log"
 
 	entsql "entgo.io/ent/dialect/sql"
 	"github.com/redis/go-redis/v9"
 
 	_ "github.com/go-sql-driver/mysql"
+	_ "github.com/jackc/pgx/v5/stdlib"
+
+	entdialect "entgo.io/ent/dialect"
 
 	"LingChat/internal/data/ent/ent"
 	"LingChat/internal/data/ent/ent/migrate"
@@ -36,9 +40,19 @@ func NewData(entClient *ent.Client, redisClient *redis.Client) (*Data, func(), e
 
 func NewEntClient(ctx context.Context, dialect string, source string, AutoMigrate bool) (*ent.Client, error) {
 
-	drv, err := entsql.Open(dialect, source)
-	if err != nil {
-		return nil, err
+	var drv *entsql.Driver
+	if dialect == "pgx" {
+		db, err := sql.Open(dialect, source)
+		if err != nil {
+			return nil, err
+		}
+		drv = entsql.OpenDB(entdialect.Postgres, db)
+	} else {
+		var err error
+		drv, err = entsql.Open(dialect, source)
+		if err != nil {
+			return nil, err
+		}
 	}
 	// db := drv.DB()
 	// db.SetMaxIdleConns(c.MaxIdle)
