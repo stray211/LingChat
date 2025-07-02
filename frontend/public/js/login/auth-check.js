@@ -1,88 +1,70 @@
-// auth-check.js - Script to check authentication status before allowing access to pages
+// auth-check.js - Script to check authentication status using JWT tokens
 
-document.addEventListener("DOMContentLoaded", () => {
+function performAuthCheck() {
   // Skip login check for the login page
   if (window.location.pathname.includes("login")) {
     return;
   }
 
-  // Check if user is logged in
-  const userData = localStorage.getItem("user");
-  let isLoggedIn = false;
-
-  if (userData) {
-    try {
-      const user = JSON.parse(userData);
-      isLoggedIn = user && user.isLoggedIn;
-    } catch (error) {
-      console.error("Error parsing user data:", error);
-      localStorage.removeItem("user");
-    }
-  }
-
-  // If not logged in, redirect to login page
-  if (!isLoggedIn) {
+  // Check if JWTUtils is available
+  if (typeof JWTUtils === 'undefined') {
     window.location.href = "/login";
+    return;
   }
-});
 
-// Export a function to check login status
-export function checkLoginStatus() {
-  const userData = localStorage.getItem("user");
-  
-  if (userData) {
-    try {
-      const user = JSON.parse(userData);
-      return user && user.isLoggedIn;
-    } catch (error) {
-      console.error("Error parsing user data:", error);
-      localStorage.removeItem("user");
-    }
+  // Use JWT utils to check user login status
+  const currentUser = JWTUtils.getCurrentUser();
+
+  if (!currentUser) {
+    // Clean up any invalid data
+    JWTUtils.removeToken();
+    window.location.href = "/login";
+    return;
   }
-  
-  return false;
+
+  // Set global user info for other scripts to use
+  window.currentUser = currentUser;
+}
+
+// 立即执行一次认证检查（适用于脚本动态加载的情况）
+if (document.readyState === 'loading') {
+  document.addEventListener("DOMContentLoaded", performAuthCheck);
+} else {
+  // 如果DOM已经加载完成，立即执行
+  performAuthCheck();
+}
+
+// Function to check login status
+function checkLoginStatus() {
+  const currentUser = JWTUtils.getCurrentUser();
+  return currentUser !== null;
 }
 
 // Function to check if user is admin
-export function isAdminUser() {
-  const userData = localStorage.getItem("user");
-  console.log("isAdminUser 被调用");
+function isAdminUser() {
+  const currentUser = JWTUtils.getCurrentUser();
   
-  if (userData) {
-    try {
-      const user = JSON.parse(userData);
-      console.log("isAdminUser 解析用户数据:", user);
-      const isAdmin = user && user.isLoggedIn && user.role === "admin";
-      console.log("isAdminUser 判断结果:", isAdmin);
-      return isAdmin;
-    } catch (error) {
-      console.error("isAdminUser 错误:", error);
-    }
-  } else {
-    console.log("isAdminUser 未找到用户数据");
+  if (currentUser) {
+    return currentUser.role === "admin";
   }
   
   return false;
 }
 
-// Function to get the current user
-export function getCurrentUser() {
-  const userData = localStorage.getItem("user");
-  
-  if (userData) {
-    try {
-      return JSON.parse(userData);
-    } catch (error) {
-      console.error("Error parsing user data:", error);
-      localStorage.removeItem("user");
-    }
-  }
-  
-  return null;
+// Function to get the current user from JWT
+function getCurrentUserFromAuth() {
+  return JWTUtils.getCurrentUser();
 }
 
 // Function to logout
-export function logout() {
-  localStorage.removeItem("user");
+function logoutUser() {
+  JWTUtils.removeToken();
+  clearAllUserData(); // Clear all user data
   window.location.href = "/login";
-} 
+}
+
+// 将函数挂载到全局作用域
+window.checkLoginStatus = checkLoginStatus;
+window.isAdminUser = isAdminUser;
+window.getCurrentUserFromAuth = getCurrentUserFromAuth;
+window.logoutUser = logoutUser;

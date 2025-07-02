@@ -66,13 +66,14 @@ func main() {
 	// init HTTP server
 	chatRoute := v1.NewChatRoute(chatService, conversationService, userRepo, j)
 	userRoute := v1.NewUserRoute(userService, userRepo, j)
+	webRoute := v1.NewWebRoute(conf.Backend.StaticDir) // 从配置获取静态文件目录
 	httpEngine := routes.NewHTTPEngine(
 		// Server Addr
 		fmt.Sprintf("%s:%d", conf.Backend.BindAddr, conf.Backend.Port),
 		// WebSocket Handler
 		ws.NewWebSocketHandler(ws.NewWebSocketEngine(chatService).LingChatHandler),
 		// HTTP REST API routes
-		chatRoute, userRoute,
+		chatRoute, userRoute, webRoute,
 	)
 
 	// Start server

@@ -39,10 +39,11 @@ type ChatConfig struct {
 
 // BackendConfig 后端服务配置
 type BackendConfig struct {
-	LogDir   string `json:"log_dir" yaml:"log_dir"`
-	BindAddr string `json:"bind_addr" yaml:"bind_addr"`
-	Addr     string `json:"addr" yaml:"addr"`
-	Port     int    `json:"port" yaml:"port"`
+	LogDir    string `json:"log_dir" yaml:"log_dir"`
+	BindAddr  string `json:"bind_addr" yaml:"bind_addr"`
+	Addr      string `json:"addr" yaml:"addr"`
+	Port      int    `json:"port" yaml:"port"`
+	StaticDir string `json:"static_dir" yaml:"static_dir"`
 }
 
 // VitsConfig 语音合成配置
@@ -86,10 +87,11 @@ func GetConfigFromEnv() *Config {
 			Model:   os.Getenv("MODEL_TYPE"),
 		},
 		Backend: BackendConfig{
-			LogDir:   os.Getenv("BACKEND_LOG_DIR"),
-			BindAddr: os.Getenv("BACKEND_BIND_ADDR"),
-			Addr:     os.Getenv("BACKEND_ADDR"),
-			Port:     backendPort,
+			LogDir:    os.Getenv("BACKEND_LOG_DIR"),
+			BindAddr:  os.Getenv("BACKEND_BIND_ADDR"),
+			Addr:      os.Getenv("BACKEND_ADDR"),
+			Port:      backendPort,
+			StaticDir: os.Getenv("BACKEND_STATIC_DIR"),
 		},
 		Vits: VitsConfig{
 			APIURL:    os.Getenv("VITS_API_URL"),

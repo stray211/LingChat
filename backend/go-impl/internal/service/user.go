@@ -58,7 +58,12 @@ func (s *userService) Register(ctx context.Context, user *data.User) (*ent.User,
 	if err != nil {
 		return nil, "", err
 	}
-	token, err := s.jwt.GenerateToken(jwt.ClaimParams{UserID: int(u.ID)}, 0)
+	token, err := s.jwt.GenerateToken(jwt.ClaimParams{
+		UserID:   int(u.ID),
+		Username: u.Username,
+		Email:    u.Email,
+		Role:     "user", // 默认角色
+	}, 0)
 	if err != nil {
 		return nil, "", err
 	}
@@ -74,7 +79,18 @@ func (s *userService) Login(ctx context.Context, user *data.User) (*ent.User, st
 	if err != nil {
 		return nil, "", err
 	}
-	token, err := s.jwt.GenerateToken(jwt.ClaimParams{UserID: int(u.ID)}, 0)
+	// 判断是否为root管理员账户
+	role := "user"
+	if u.Username == "root" {
+		role = "admin"
+	}
+
+	token, err := s.jwt.GenerateToken(jwt.ClaimParams{
+		UserID:   int(u.ID),
+		Username: u.Username,
+		Email:    u.Email,
+		Role:     role,
+	}, 0)
 	if err != nil {
 		return nil, "", err
 	}

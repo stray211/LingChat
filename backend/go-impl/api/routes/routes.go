@@ -69,6 +69,10 @@ type Route interface {
 	RegisterRoute(r *gin.RouterGroup)
 }
 
+type WebRoute interface {
+	RegisterWebRoute(engine *gin.Engine)
+}
+
 func (h *HttpEngine) RegisterRoutes() {
 	eg := h.Engine.Group("/api")
 
@@ -90,7 +94,13 @@ func (h *HttpEngine) RegisterRoutes() {
 	// 	}
 	// }
 	for _, route := range h.routes {
-		route.RegisterRoute(eg)
+		// 检查是否是WebRoute类型，如果是则直接在Engine级别注册
+		if webRoute, ok := route.(WebRoute); ok {
+			webRoute.RegisterWebRoute(h.Engine)
+		} else {
+			// 否则在/api组下注册
+			route.RegisterRoute(eg)
+		}
 	}
 }
 

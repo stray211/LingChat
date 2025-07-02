@@ -9,8 +9,11 @@ import (
 )
 
 type ClaimParams struct {
-	UserID  int    `json:"user_id"`
-	TokenID string `json:"token_id"`
+	UserID   int    `json:"user_id"`
+	Username string `json:"username"`
+	Email    string `json:"email"`
+	Role     string `json:"role"`
+	TokenID  string `json:"token_id"`
 }
 
 type CustomClaims struct {

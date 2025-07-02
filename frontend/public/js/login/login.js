@@ -59,10 +59,10 @@ document.addEventListener("DOMContentLoaded", () => {
     resetPwdForm.style.display = "block";
     resetPwdMessage.textContent = "";
 
-    // 如果已记住邮箱，自动填充
-    const rememberedEmail = localStorage.getItem("remembered_email");
-    if (rememberedEmail) {
-      document.getElementById("reset-email").value = rememberedEmail;
+    // 如果已记住用户名，自动填充
+    const rememberedUsername = localStorage.getItem("remembered_username");
+    if (rememberedUsername) {
+      document.getElementById("reset-email").value = rememberedUsername;
     }
   });
 
@@ -80,79 +80,60 @@ document.addEventListener("DOMContentLoaded", () => {
     loginMessage.textContent = "";
     loginMessage.className = "form-message";
 
-    const email = document.getElementById("email").value;
+    const username = document.getElementById("email").value;
     const password = document.getElementById("password").value;
     const rememberMe = rememberMeCheckbox ? rememberMeCheckbox.checked : false;
 
     // Validate form
-    if (!email || !password) {
+    if (!username || !password) {
       loginMessage.textContent = "请填写所有必填字段";
       return;
-    }
-
-    // Skip email validation for "root" user
-    if (email !== "root") {
-      // Validate email format for non-root users
-      const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
-      if (!emailRegex.test(email)) {
-        loginMessage.textContent = "请输入有效的邮箱地址";
-        return;
-      }
     }
 
     // Disable the form during submission
     setFormLoading(loginFormElement, true);
 
-    try {
-      console.log("发送登录请求:", { email, rememberMe });
+          try {
+        console.log("发送登录请求:", { username, rememberMe });
 
-      const response = await fetch("/api/auth/login", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ email, password }),
-      });
+        const response = await fetch("/api/v1/user/login", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ username, password }),
+        });
 
       const data = await response.json();
       console.log("登录响应:", {
-        success: data.success,
-        message: data.message,
+        code: data.code,
+        msg: data.msg,
       });
 
-      if (data.success) {
+      if (data.code === 200) {
         loginMessage.textContent = "登录成功，正在跳转...";
         loginMessage.className = "form-message success";
 
         // Remember login info if checkbox is checked
         if (rememberMe) {
-          localStorage.setItem("remembered_email", email);
+          localStorage.setItem("remembered_username", username);
           localStorage.setItem("remembered_password", btoa(password)); // 简单加密，非安全存储
           localStorage.setItem("remember_me", "true");
         } else {
-          localStorage.removeItem("remembered_email");
+          localStorage.removeItem("remembered_username");
           localStorage.removeItem("remembered_password");
           localStorage.removeItem("remember_me");
         }
 
-        // Save user info to local storage, including role
-        localStorage.setItem(
-          "user",
-          JSON.stringify({
-            email: data.email,
-            username: data.email.split("@")[0], // 使用邮箱前缀作为用户名
-            userId: data.user_id,
-            role: data.role || "user", // Save user role
-            isLoggedIn: true,
-          })
-        );
+        // Save JWT token instead of user object
+        JWTUtils.saveToken(data.data.token);
 
         // Redirect to chat page after a short delay
         setTimeout(() => {
           window.location.href = "/";
         }, 1000);
       } else {
-        loginMessage.textContent = data.message || "登录失败，请检查邮箱和密码";
+        loginMessage.textContent = data.msg || "登录失败，请检查邮箱和密码";
       }
     } catch (error) {
       console.error("登录错误:", error);
@@ -190,23 +171,22 @@ document.addEventListener("DOMContentLoaded", () => {
     registerMessage.textContent = "";
     registerMessage.className = "form-message";
 
+    const username = document.getElementById("reg-username").value;
     const email = document.getElementById("reg-email").value;
-    // 使用邮箱前缀作为默认用户名
-    const username = email.split("@")[0];
     const password = document.getElementById("reg-password").value;
     const confirmPassword = document.getElementById(
       "reg-confirm-password"
     ).value;
 
     console.log("注册表单数据:", {
-      email,
       username,
+      email,
       password: "******",
       confirmPassword: "******",
     });
 
     // Validate form
-    if (!email || !password || !confirmPassword) {
+    if (!username || !email || !password || !confirmPassword) {
       registerMessage.textContent = "请填写所有必填字段";
       return;
     }
@@ -236,7 +216,7 @@ document.addEventListener("DOMContentLoaded", () => {
       // 添加日志以帮助调试
       console.log("发送注册请求:", { email, username, password: "******" });
 
-      const response = await fetch("/api/auth/register", {
+      const response = await fetch("/api/v1/user/register", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -259,46 +239,38 @@ document.addEventListener("DOMContentLoaded", () => {
 
       console.log("注册响应:", data);
 
-      if (data.success) {
+      if (data.code === 200) {
         registerMessage.textContent = "注册成功！正在自动登录...";
         registerMessage.className = "form-message success";
 
         // 自动登录
         setTimeout(async () => {
           try {
-            const loginResponse = await fetch("/api/auth/login", {
+            const loginResponse = await fetch("/api/v1/user/login", {
               method: "POST",
               headers: {
                 "Content-Type": "application/json",
               },
-              body: JSON.stringify({ email, password }),
+              body: JSON.stringify({ username, password }),
             });
 
             const loginData = await loginResponse.json();
 
-            if (loginData.success) {
+            if (loginData.code === 200) {
               console.log("注册后自动登录成功");
 
-              // Save user info to local storage
-              localStorage.setItem(
-                "user",
-                JSON.stringify({
-                  email: loginData.email,
-                  username: email.split("@")[0],
-                  userId: loginData.user_id,
-                  isLoggedIn: true,
-                })
-              );
+              // Save JWT token
+              JWTUtils.saveToken(loginData.data.token);
 
               // Redirect to chat page
               window.location.href = "/";
             } else {
-              console.log("注册后自动登录失败:", loginData.message);
+              console.log("注册后自动登录失败:", loginData.msg);
               // 仍然跳转到登录页面
               loginTab.click();
               loginMessage.textContent = "注册成功，请登录";
               loginMessage.className = "form-message success";
-              document.getElementById("email").value = email;
+              document.getElementById("email").value = username;
             }
           } catch (error) {
             console.error("自动登录错误:", error);
@@ -306,19 +278,19 @@ document.addEventListener("DOMContentLoaded", () => {
             loginTab.click();
             loginMessage.textContent = "注册成功，请登录";
             loginMessage.className = "form-message success";
-            document.getElementById("email").value = email;
+            document.getElementById("email").value = username;
           }
         }, 1500);
       } else {
         if (
-          data.message &&
-          (data.message.includes("Email already registered") ||
-            data.message.includes("already registered"))
+          data.msg &&
+          (data.msg.includes("Email already registered") ||
+            data.msg.includes("already registered"))
         ) {
           registerMessage.textContent =
             "此邮箱已被注册，请使用其他邮箱或直接登录";
         } else {
-          registerMessage.textContent = data.message || "注册失败，请稍后再试";
+          registerMessage.textContent = data.msg || "注册失败，请稍后再试";
         }
       }
     } catch (error) {
@@ -397,16 +369,16 @@ document.addEventListener("DOMContentLoaded", () => {
    * Auto-fill login form if credentials are saved
    */
   function autoFillLoginForm() {
-    const rememberedEmail = localStorage.getItem("remembered_email");
+    const rememberedUsername = localStorage.getItem("remembered_username");
     const rememberedPassword = localStorage.getItem("remembered_password");
     const rememberedFlag = localStorage.getItem("remember_me");
 
-    if (rememberedEmail && rememberedPassword && rememberedFlag === "true") {
-      const emailField = document.getElementById("email");
+    if (rememberedUsername && rememberedPassword && rememberedFlag === "true") {
+      const usernameField = document.getElementById("email");
       const passwordField = document.getElementById("password");
 
-      if (emailField && passwordField && rememberMeCheckbox) {
-        emailField.value = rememberedEmail;
+      if (usernameField && passwordField && rememberMeCheckbox) {
+        usernameField.value = rememberedUsername;
         try {
           passwordField.value = atob(rememberedPassword); // 解密
         } catch (e) {
@@ -417,7 +389,7 @@ document.addEventListener("DOMContentLoaded", () => {
         rememberMeCheckbox.checked = true;
 
         // Special case for root user
-        if (rememberedEmail === "root") {
+        if (rememberedUsername === "root") {
           console.log("检测到root用户凭据，准备特殊处理");
         }
       }
@@ -428,27 +400,19 @@ document.addEventListener("DOMContentLoaded", () => {
    * Check if user is already logged in
    */
   function checkLoginStatus() {
-    const userData = localStorage.getItem("user");
+    const currentUser = JWTUtils.getCurrentUser();
 
-    if (userData) {
-      try {
-        const user = JSON.parse(userData);
-
-        if (user && user.isLoggedIn) {
-          // User is already logged in, redirect to chat page
-          window.location.href = "/";
-        }
-      } catch (error) {
-        console.error("解析用户数据出错:", error);
-        localStorage.removeItem("user");
-      }
+    if (currentUser) {
+      console.log("检测到有效的登录状态:", currentUser);
+      // User is already logged in, redirect to chat page
+      window.location.href = "/";
     } else {
       // Try auto login with remembered credentials
-      const rememberedEmail = localStorage.getItem("remembered_email");
+      const rememberedUsername = localStorage.getItem("remembered_username");
       const rememberedPassword = localStorage.getItem("remembered_password");
       const rememberMe = localStorage.getItem("remember_me");
 
-      if (rememberedEmail && rememberedPassword && rememberMe === "true") {
+      if (rememberedUsername && rememberedPassword && rememberMe === "true") {
         // Perform auto login
         console.log("正在使用已保存的凭据自动登录...");
 
@@ -464,43 +428,31 @@ document.addEventListener("DOMContentLoaded", () => {
             }
 
             // Special handling for root user
-            console.log("自动登录用户:", rememberedEmail);
+            console.log("自动登录用户:", rememberedUsername);
 
-            const response = await fetch("/api/auth/login", {
+            const response = await fetch("/api/v1/user/login", {
               method: "POST",
               headers: {
                 "Content-Type": "application/json",
               },
               body: JSON.stringify({
-                email: rememberedEmail,
+                username: rememberedUsername,
                 password: password,
               }),
             });
 
             const data = await response.json();
 
-            if (data.success) {
+            if (data.code === 200) {
               console.log("自动登录成功");
 
-              // Save user info to local storage
-              localStorage.setItem(
-                "user",
-                JSON.stringify({
-                  email: data.email,
-                  username:
-                    data.email === "root"
-                      ? "Root Administrator"
-                      : data.email.split("@")[0],
-                  userId: data.user_id,
-                  role: data.role || "user",
-                  isLoggedIn: true,
-                })
-              );
+              // Save JWT token
+              JWTUtils.saveToken(data.data.token);
 
               // Redirect to chat page
               window.location.href = "/";
             } else {
-              console.log("自动登录失败，需要手动登录:", data.message);
+              console.log("自动登录失败，需要手动登录:", data.msg);
               // 不要清除凭据，可能是临时服务器错误
             }
           } catch (error) {
@@ -518,7 +470,7 @@ document.addEventListener("DOMContentLoaded", () => {
       resetPwdMessage.textContent = "";
       resetPwdMessage.className = "form-message";
 
-      const email = document.getElementById("reset-email").value;
+      const username = document.getElementById("reset-email").value;
       const oldPassword = document.getElementById("reset-old-password").value;
       const newPassword = document.getElementById("reset-new-password").value;
       const confirmPassword = document.getElementById(
@@ -526,7 +478,7 @@ document.addEventListener("DOMContentLoaded", () => {
       ).value;
 
       // 表单验证
-      if (!email || !oldPassword || !newPassword || !confirmPassword) {
+      if (!username || !oldPassword || !newPassword || !confirmPassword) {
         resetPwdMessage.textContent = "请填写所有必填字段";
         return;
       }
@@ -534,16 +486,6 @@ document.addEventListener("DOMContentLoaded", () => {
       if (newPassword !== confirmPassword) {
         resetPwdMessage.textContent = "两次输入的新密码不一致";
         return;
-      }
-
-      // Skip email validation for "root" user
-      if (email !== "root") {
-        // 验证邮箱格式
-        const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
-        if (!emailRegex.test(email)) {
-          resetPwdMessage.textContent = "请输入有效的邮箱地址";
-          return;
-        }
       }
 
       // 验证密码强度
@@ -555,26 +497,35 @@ document.addEventListener("DOMContentLoaded", () => {
       // 禁用表单在提交期间
       setFormLoading(resetPwdFormElement, true);
 
-      try {
-        console.log("发送修改密码请求:", { email });
+              try {
+          console.log("发送修改密码请求:", { username });
 
-        const response = await fetch("/api/auth/reset-password", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ email, oldPassword, newPassword }),
-        });
+          // Get JWT token for authentication
+          const token = JWTUtils.getStoredToken();
+          if (!token) {
+            resetPwdMessage.textContent = "请先登录";
+            return;
+          }
+
+          const response = await fetch("/api/v1/user/password", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "Authorization": token,
+            },
+            body: JSON.stringify({ old_password: oldPassword, new_password: newPassword }),
+          });
 
         const data = await response.json();
         console.log("修改密码响应:", data);
 
-        if (data.success) {
+        if (data.code === 200) {
           resetPwdMessage.textContent = "密码修改成功！请使用新密码登录";
           resetPwdMessage.className = "form-message success";
 
           // 如果有记住密码，更新存储的密码
-          if (localStorage.getItem("remembered_email") === email) {
+          const currentUser = JWTUtils.getCurrentUser();
+          if (currentUser && localStorage.getItem("remembered_username") === currentUser.username) {
             localStorage.setItem("remembered_password", btoa(newPassword));
           }
 
@@ -587,11 +538,11 @@ document.addEventListener("DOMContentLoaded", () => {
             registerTab.classList.remove("active");
             loginMessage.textContent = "密码已更新，请使用新密码登录";
             loginMessage.className = "form-message success";
-            document.getElementById("email").value = email;
+            document.getElementById("email").value = currentUser ? currentUser.username : username;
           }, 2000);
         } else {
           resetPwdMessage.textContent =
-            data.message || "密码修改失败，请检查您的邮箱和当前密码";
+            data.msg || "密码修改失败，请检查您的邮箱和当前密码";
         }
       } catch (error) {
         console.error("修改密码错误:", error);

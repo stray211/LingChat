@@ -12,7 +12,7 @@ import { SaveController } from "./features/save/controller.js";
 // 初始化模块
 const host = window.location.hostname || "localhost";
 const protocol = window.location.protocol === "https:" ? "wss" : "ws";
-const wsUrl = `${protocol}://${host}:3000/ws`;
+const wsUrl = `${protocol}://${host}:8765/ws`;
 const socket = new ChatSocket(wsUrl);
 
 const uiController = new UIController();

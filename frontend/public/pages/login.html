@@ -31,12 +31,12 @@
         <div class="login-form" id="login-form">
           <form id="login-form-element">
             <div class="form-group">
-              <label for="email">账号</label>
+              <label for="email">用户名</label>
               <input
                 type="text"
                 id="email"
                 name="email"
-                placeholder="请输入您的邮箱或账号"
+                placeholder="请输入您的用户名"
                 required
               />
             </div>
@@ -70,6 +70,16 @@
 
         <div class="register-form" id="register-form" style="display: none">
           <form id="register-form-element">
+            <div class="form-group">
+              <label for="reg-username">用户名</label>
+              <input
+                type="text"
+                id="reg-username"
+                name="username"
+                placeholder="请输入用户名"
+                required
+              />
+            </div>
             <div class="form-group">
               <label for="reg-email">邮箱</label>
               <input
@@ -119,12 +129,12 @@
           <h3>修改密码</h3>
           <form id="reset-pwd-form-element">
             <div class="form-group">
-              <label for="reset-email">账号</label>
+              <label for="reset-email">用户名</label>
               <input
                 type="text"
                 id="reset-email"
                 name="email"
-                placeholder="请输入您的邮箱或账号"
+                placeholder="请输入您的用户名"
                 required
               />
             </div>
@@ -176,6 +186,8 @@
       </div>
     </div>
 
+    <script src="../js/utils/jwt-utils.js"></script>
+    <script src="../js/login/clear-user-data.js"></script>
     <script type="module" src="../js/login/login.js"></script>
   </body>
 </html>
