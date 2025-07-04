@@ -1,4 +1,5 @@
 import EventBus from "../../core/event-bus.js";
+import { DOM } from "../../ui/dom.js";
 
 export class ChatManager {
   constructor({ connection, historyManager }) {
@@ -118,16 +119,18 @@ export class ChatManager {
       content: text,
     };
 
-    this.connection.send(message);
+    EventBus.emit("chat:thinking", true);
+
+    // 先确保音频开始播放再发送消息
+    setTimeout(() => {
+      this.connection.send(message);
+    }, 600); // 300ms延迟确保音频已启动
     this.historyManager.addMessage(text, null, false);
 
     // 更新状态
     this.isWaitingForResponse = true;
     this.messageQueue = [];
     this.isProcessing = false;
-
-    EventBus.emit("chat:message-sent", message);
-    EventBus.emit("chat:thinking", true);
   }
 
   handleContinue() {
