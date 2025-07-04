@@ -45,6 +45,9 @@ export const DOM = {
   menuContent: document.getElementById("menu-content"),
   closeMenu: document.getElementById("close-menu"),
 
+  menuAccount: document.getElementById("menu-account"),
+  accountPage: document.getElementById("account-page"),
+
   menuCharacter: document.getElementById("menu-character"),
   characterPage: document.getElementById("character-page"),
 
@@ -104,6 +107,12 @@ export const DOM = {
   save: {
     uploadBtn: document.getElementById("upload-btn"),
     fileInput: document.getElementById("log-upload"),
+  },
+
+  // 账户部分
+  account: {
+    info: document.getElementById("account-info"),
+    actions: document.getElementById("account-actions"),
   },
 };
 

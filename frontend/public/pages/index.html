@@ -10,6 +10,7 @@
     <link rel="stylesheet" href="../css/browser-compat.css" />
     <link rel="stylesheet" href="../css/load-animation.css" />
     <link rel="stylesheet" href="../css/menu/image.css" />
+    <link rel="stylesheet" href="../css/account.css" />
     <link
       rel="icon"
       href="../pictures/icons/小猫Ling.svg"
@@ -37,6 +38,7 @@
               <div id="status">正在连接服务器...</div>
             </div>
             <div id="menu-buttons">
+              <button id="menu-account" class="">👤账户</button>
               <button id="menu-character" class="">🐺角色</button>
               <button id="menu-text" class="">📄文本</button>
               <button id="menu-image" class="">🏜️背景</button>
@@ -46,6 +48,24 @@
             </div>
           </div>
           <div class="maxbody">
+            <div class="menu-body" id="account-page">
+              <div class="menu-section">
+                <h4>👤 账户信息</h4>
+                <div class="line"></div>
+                <div id="account-info">
+                  <!-- 账户信息将通过JavaScript动态添加 -->
+                </div>
+              </div>
+              <div class="menu-section">
+                <div class="menu-item">
+                  <h4>🚪 账户操作</h4>
+                  <div class="line"></div>
+                  <div id="account-actions">
+                    <!-- 账户操作按钮将通过JavaScript动态添加 -->
+                  </div>
+                </div>
+              </div>
+            </div>
             <div class="menu-body" id="character-page">
               <div class="menu-section">
                 <h4>🐈 角色列表</h4>

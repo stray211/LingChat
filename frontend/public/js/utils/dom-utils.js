@@ -6,6 +6,8 @@ export const DomUtils = {
     DOM.history.toggle,
     DOM.history.content,
     DOM.history.clearBtn,
+    DOM.menuAccount,
+    DOM.accountPage,
     DOM.menuCharacter,
     DOM.characterPage,
     DOM.menuText,

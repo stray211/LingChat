@@ -1,0 +1,133 @@
+/* 账户信息样式 */
+.account-info-card {
+  background-color: rgba(255, 255, 255, 0.9);
+  border-radius: 12px;
+  padding: 20px;
+  margin: 10px 0;
+  backdrop-filter: blur(5px);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
+}
+
+.account-field {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.account-field:last-child {
+  border-bottom: none;
+}
+
+.field-label {
+  font-weight: 600;
+  color: #222;
+  font-size: 14px;
+  min-width: 80px;
+}
+
+.field-value {
+  color: #444;
+  font-size: 14px;
+  font-weight: 500;
+  text-align: right;
+  flex: 1;
+  margin-left: 10px;
+}
+
+/* 登录状态样式 */
+.status-logged-in {
+  color: #28a745 !important;
+  font-weight: 600;
+}
+
+.status-not-logged-in {
+  color: #dc3545 !important;
+  font-weight: 600;
+}
+
+/* 账户消息样式 */
+.account-message {
+  margin: 15px 0;
+  padding: 15px;
+  background-color: rgba(255, 243, 205, 0.8);
+  border-radius: 8px;
+  border-left: 4px solid #ffc107;
+}
+
+.account-message p {
+  margin: 0;
+  color: #333;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+/* 账户操作按钮样式 */
+.logout-btn {
+  background-color: #dc3545 !important;
+  color: white !important;
+  border: 1px solid #dc3545 !important;
+}
+
+.logout-btn:hover {
+  background-color: #c82333 !important;
+  border-color: #c82333 !important;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(220, 53, 69, 0.3);
+}
+
+.login-btn {
+  background-color: #007bff !important;
+  color: white !important;
+  border: 1px solid #007bff !important;
+}
+
+.login-btn:hover {
+  background-color: #0056b3 !important;
+  border-color: #0056b3 !important;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 123, 255, 0.3);
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .account-field {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  
+  .field-value {
+    text-align: left;
+    margin-left: 0;
+    margin-top: 5px;
+  }
+  
+  .field-label {
+    min-width: auto;
+  }
+}
+
+/* 深色模式适配 */
+body.bg-night .account-info-card {
+  background-color: rgba(0, 0, 0, 0.8);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+body.bg-night .field-label {
+  color: #f0f0f0;
+}
+
+body.bg-night .field-value {
+  color: #d0d0d0;
+}
+
+body.bg-night .account-message {
+  background-color: rgba(41, 37, 17, 0.8);
+  border-left-color: #ffc107;
+}
+
+body.bg-night .account-message p {
+  color: #d0d0d0;
+} 
