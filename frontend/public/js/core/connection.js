@@ -1,13 +1,14 @@
 import EventBus from "./event-bus.js";
-export class ChatSocket {
-  constructor(url) {
-    this.url = url;
-    this.socket = null;
-    this.reconnectAttempts = 0;
-    this.maxReconnects = 5;
-    this.heartbeatInterval = 30000;
 
-    // 添加事件监听器容器
+export class ChatClient {
+  constructor(baseUrl) {
+    this.baseUrl = baseUrl || '';
+    this.apiUrl = `${this.baseUrl}/api/v1/chat/completion`;
+    this.conversationId = null;
+    this.messageId = null;
+    this.isConnected = true;
+
+    // 保持与WebSocket相同的事件监听器接口
     this.eventListeners = {
       message: [],
       open: [],
@@ -15,75 +16,59 @@ export class ChatSocket {
       error: [],
     };
 
-    this.setupConnection();
-  }
-
-  setupConnection() {
-    this.socket = new WebSocket(this.url);
-
-    // 转发原生WebSocket事件到自定义监听器
-    this.socket.onmessage = (event) => {
-      this.eventListeners.message.forEach((cb) => cb(event));
-    };
-
-    this.socket.onopen = () => {
-      this.reconnectAttempts = 0;
-      this.startHeartbeat();
+    // 模拟连接打开
+    setTimeout(() => {
       this.eventListeners.open.forEach((cb) => cb());
       EventBus.emit("connection:open");
-    };
-
-    this.socket.onclose = (e) => {
-      this.eventListeners.close.forEach((cb) => cb(e));
-      this.handleDisconnect(e);
-    };
-
-    this.socket.onerror = (err) => {
-      this.eventListeners.error.forEach((cb) => cb(err));
-      EventBus.emit("connection:error", err);
-    };
+    }, 100);
   }
 
-  startHeartbeat() {
-    this.heartbeatTimer = setInterval(() => {
-      if (this.socket.readyState === WebSocket.OPEN) {
-        this.socket.send(JSON.stringify({ type: "ping" }));
+  async send(data) {
+    try {
+      // 转换消息格式：WebSocket格式 -> HTTP格式
+      const requestData = {
+        message: data.content,
+        conversation_id: this.conversationId || "",
+        prev_message_id: this.messageId || ""
+      };
+
+      const response = await fetch(this.apiUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestData)
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
       }
-    }, this.heartbeatInterval);
-  }
 
-  handleDisconnect(event) {
-    clearInterval(this.heartbeatTimer);
+      const result = await response.json();
+      
+      // 更新会话状态
+      if (result.data) {
+        this.conversationId = result.data.conversation_id;
+        this.messageId = result.data.message_id;
+        
+        // 模拟WebSocket消息事件，为每个消息分别触发
+        result.data.messages.forEach(message => {
+          const messageEvent = {
+            data: JSON.stringify(message)
+          };
+          this.eventListeners.message.forEach((cb) => cb(messageEvent));
+        });
+      }
 
-    if (this.reconnectAttempts < this.maxReconnects) {
-      const delay = Math.min(1000 * Math.pow(2, this.reconnectAttempts), 30000);
-      this.reconnectAttempts++;
-
-      setTimeout(() => {
-        console.log(
-          `尝试重新连接 (${this.reconnectAttempts}/${this.maxReconnects})`
-        );
-        this.setupConnection();
-      }, delay);
-    } else {
-      EventBus.emit("connection:dead");
+    } catch (error) {
+      console.error('发送消息失败:', error);
+      this.eventListeners.error.forEach((cb) => cb(error));
+      EventBus.emit("connection:error", error);
+      throw error;
     }
   }
 
-  send(data) {
-    if (this.socket.readyState === WebSocket.OPEN) {
-      this.socket.send(JSON.stringify(data));
-    } else {
-      throw new Error("WebSocket未连接");
-    }
-  }
-
-  close() {
-    clearInterval(this.heartbeatTimer);
-    this.socket.close();
-  }
-
-  // 添加事件监听方法
+  // 保持与WebSocket相同的事件监听接口
   onmessage(callback) {
     this.eventListeners.message.push(callback);
   }
@@ -99,4 +84,14 @@ export class ChatSocket {
   onerror(callback) {
     this.eventListeners.error.push(callback);
   }
+
+  // 兼容性方法
+  close() {
+    this.isConnected = false;
+    this.eventListeners.close.forEach((cb) => cb());
+  }
 }
+
+// 为了向后兼容，保留旧的类名作为别名
+export const ChatSocket = ChatClient;
+

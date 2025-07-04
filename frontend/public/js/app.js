@@ -12,12 +12,11 @@ import { SaveController } from "./features/save/controller.js";
 import { AccountController } from "./features/account/controller.js";
 
 // 初始化模块
-const protocol = window.location.protocol === "https:" ? "wss" : "ws";
+const protocol = window.location.protocol;
 const host = window.location.hostname;
-// 使用当前页面的主机和端口，确保WebSocket连接到正确的服务器
-const port = window.location.port || (protocol === "wss" ? "443" : "80");
-const wsUrl = `${protocol}://${host}:${port}/ws`;
-const socket = new ChatSocket(wsUrl);
+const port = window.location.port || (protocol === "https:" ? "443" : "80");
+const baseUrl = `${protocol}//${host}:${port}`;
+const socket = new ChatSocket(baseUrl);
 
 const uiController = new UIController();
 const historyManager = new HistoryManager();
