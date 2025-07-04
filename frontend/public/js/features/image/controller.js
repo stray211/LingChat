@@ -1,7 +1,7 @@
 import { DOM } from "../../ui/dom.js";
 import { DomUtils } from "../../utils/dom-utils.js";
-import { KousanManager } from "./kuosan-manager.js";
 import request from "../../core/request.js";
+import { KousanManager } from "./kuosan-manager.js";
 
 export class ImageController {
   constructor() {
@@ -9,34 +9,42 @@ export class ImageController {
     this.domUtils = DomUtils;
     this.currentSelectedCard = null; // 跟踪当前选中的卡片
     this.kousanManager = new KousanManager();
+    this.backgroundListLoaded = false; // 添加标志，记录背景列表是否已加载
+    
+    // 设置默认背景数据
+    this.defaultBackgrounds = [
+      {
+        title: "默认背景",
+        url: "../pictures/backgrounds/default.png",
+        time: new Date().toISOString()
+      }
+    ];
+    
     this.init();
   }
 
-  async init() {
-    try {
-      await this.refreshBackground();
-      this.bindEvents();
+  init() {
+    // 使用默认背景数据渲染界面
+    this.renderBackgrounds(this.defaultBackgrounds);
+    this.bindEvents();
 
-      // 从本地存储恢复选中的背景
-      const savedBg = localStorage.getItem("selectedBackground");
-      if (savedBg) {
-        const card = this.findCardByUrl(savedBg);
-        if (card) {
-          this.selectBackground(card, savedBg);
-        }
-      } else {
-        const randomCard = this.getRandomCard();
-        if (randomCard) {
-          this.selectBackground(
-            randomCard,
-            randomCard.querySelector(".background-select-btn").dataset
-              .backgroundUrl
-          );
-          console.log("已选随机背景");
-        }
+    // 从本地存储恢复选中的背景
+    const savedBg = localStorage.getItem("selectedBackground");
+    if (savedBg) {
+      const card = this.findCardByUrl(savedBg);
+      if (card) {
+        this.selectBackground(card, savedBg);
       }
-    } catch (error) {
-      console.error("加载背景图片失败", error);
+    } else {
+      // 使用默认背景
+      const defaultCard = this.getRandomCard();
+      if (defaultCard) {
+        this.selectBackground(
+          defaultCard,
+          defaultCard.querySelector(".background-select-btn").dataset.backgroundUrl
+        );
+        console.log("已选默认背景");
+      }
     }
   }
 
@@ -94,11 +102,22 @@ export class ImageController {
     });
   }
 
-  showImagePanel() {
+  async showImagePanel() {
     this.domUtils.showElements([DOM.menuImage, DOM.imagePage]);
     this.domUtils.hideElements(
       this.domUtils.getOtherPanelElements([DOM.menuImage, DOM.imagePage])
     );
+
+    // 只在第一次打开时加载背景列表
+    if (!this.backgroundListLoaded) {
+      try {
+        await this.refreshBackground();
+        this.backgroundListLoaded = true;
+      } catch (error) {
+        console.error("加载背景列表失败:", error);
+        // 失败时继续使用默认背景
+      }
+    }
   }
 
   async fetchBackgrounds() {

@@ -8,18 +8,25 @@ export class CharacterController {
     this.characterList = document.getElementById("character-list");
     this.domUtils = DomUtils;
     this.userId = 1;
+    
+    // 设置默认角色数据
+    this.defaultCharacters = [
+      {
+        id: 1,
+        title: "默认角色",
+        info: "系统默认角色，后端服务连接后将显示更多角色",
+        avatar: "../pictures/characters/default.png"
+      }
+    ];
+    
     this.init();
   }
 
-  async init() {
-    try {
-      const characters = await this.fetchCharacters();
-      this.renderCharacters(characters);
-      this.bindEvents();
-      this.updateSelectedStatus(this.ui_controller.character_id);
-    } catch (error) {
-      console.error("Failed to initialize characters:", error);
-    }
+  init() {
+    // 使用默认角色数据渲染界面
+    this.renderCharacters(this.defaultCharacters);
+    this.bindEvents();
+    this.updateSelectedStatus(this.ui_controller.character_id);
   }
 
   updateSelectedStatus(characterId) {
@@ -99,11 +106,30 @@ export class CharacterController {
 
       const data = await response.json();
       alert("刷新成功");
+      
+      // 刷新成功后重新加载角色列表
+      this.loadCharacters();
+      
       return data;
     } catch (error) {
       alert("刷新失败");
       console.error("刷新失败:", error);
       throw error;
+    }
+  }
+
+  // 新增方法：手动加载角色列表（用于刷新后）
+  async loadCharacters() {
+    try {
+      const characters = await this.fetchCharacters();
+      this.renderCharacters(characters);
+      this.bindEvents();
+      this.updateSelectedStatus(this.ui_controller.character_id);
+    } catch (error) {
+      console.error("加载角色列表失败:", error);
+      // 失败时继续使用默认角色
+      this.renderCharacters(this.defaultCharacters);
+      this.bindEvents();
     }
   }
 
@@ -123,7 +149,7 @@ export class CharacterController {
       }));
     } catch (error) {
       console.error("获取角色列表失败:", error);
-      return [];
+      return this.defaultCharacters;
     }
   }
 

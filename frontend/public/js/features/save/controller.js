@@ -22,12 +22,12 @@ export class SaveController {
   setupLoaderCallbacks() {
     // 覆盖 ConversationLoader 的默认回调方法
     this.conversationLoader.onConversationLoaded = (messages) => {
-      console.log("对话内容加载完成:", messages);
+      console.log("对话已选择");
       EventBus.emit("system:character_updated", {});
     };
 
     this.conversationLoader.onLoadError = (error) => {
-      console.error("加载对话出错:", error);
+      console.error("选择对话出错:", error);
     };
   }
 

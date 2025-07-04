@@ -10,6 +10,7 @@ import { MenuController } from "./features/menu/controller.js";
 import { ImageController } from "./features/image/controller.js";
 import { SaveController } from "./features/save/controller.js";
 import { AccountController } from "./features/account/controller.js";
+import conversationState from "./core/conversation-state.js";
 
 // 初始化模块
 const protocol = window.location.protocol;
@@ -43,6 +44,9 @@ document.addEventListener("DOMContentLoaded", () => {
     // 切换页面时销毁
     window.addEventListener("beforeunload", () => starField.destroy());
   }
+
+  // 在全局范围内暴露对话状态管理器，方便调试
+  window.conversationState = conversationState;
 });
 
 // 页面加载完成后执行的函数

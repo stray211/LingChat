@@ -1,19 +1,16 @@
 import EventBus from "./event-bus.js";
+import conversationState from "./conversation-state.js";
 
 export class ChatClient {
   constructor(baseUrl) {
-    this.baseUrl = baseUrl || '';
-    this.apiUrl = `${this.baseUrl}/api/v1/chat/completion`;
-    this.conversationId = null;
-    this.messageId = null;
+    this.baseUrl = baseUrl;
+    this.apiUrl = `${baseUrl}/api/v1/chat/completion`;
     this.isConnected = true;
-
-    // 保持与WebSocket相同的事件监听器接口
     this.eventListeners = {
       message: [],
-      open: [],
-      close: [],
       error: [],
+      close: [],
+      open: []
     };
 
     // 模拟连接打开
@@ -23,13 +20,45 @@ export class ChatClient {
     }, 100);
   }
 
+  addEventListener(event, callback) {
+    if (this.eventListeners[event]) {
+      this.eventListeners[event].push(callback);
+    }
+  }
+
+  removeEventListener(event, callback) {
+    if (this.eventListeners[event]) {
+      const index = this.eventListeners[event].indexOf(callback);
+      if (index > -1) {
+        this.eventListeners[event].splice(index, 1);
+      }
+    }
+  }
+
+  // 向后兼容的方法
+  onmessage(callback) {
+    this.eventListeners.message.push(callback);
+  }
+
+  onopen(callback) {
+    this.eventListeners.open.push(callback);
+  }
+
+  onclose(callback) {
+    this.eventListeners.close.push(callback);
+  }
+
+  onerror(callback) {
+    this.eventListeners.error.push(callback);
+  }
+
   async send(data) {
     try {
-      // 转换消息格式：WebSocket格式 -> HTTP格式
+      // 从全局状态获取对话ID和消息ID
       const requestData = {
         message: data.content,
-        conversation_id: this.conversationId || "",
-        prev_message_id: this.messageId || ""
+        conversation_id: conversationState.getConversationId(),
+        prev_message_id: conversationState.getMessageId()
       };
 
       const response = await fetch(this.apiUrl, {
@@ -46,10 +75,10 @@ export class ChatClient {
 
       const result = await response.json();
       
-      // 更新会话状态
+      // 更新全局状态
       if (result.data) {
-        this.conversationId = result.data.conversation_id;
-        this.messageId = result.data.message_id;
+        conversationState.setConversationId(result.data.conversation_id);
+        conversationState.setMessageId(result.data.message_id);
         
         // 模拟WebSocket消息事件，为每个消息分别触发
         result.data.messages.forEach(message => {
@@ -68,23 +97,6 @@ export class ChatClient {
     }
   }
 
-  // 保持与WebSocket相同的事件监听接口
-  onmessage(callback) {
-    this.eventListeners.message.push(callback);
-  }
-
-  onopen(callback) {
-    this.eventListeners.open.push(callback);
-  }
-
-  onclose(callback) {
-    this.eventListeners.close.push(callback);
-  }
-
-  onerror(callback) {
-    this.eventListeners.error.push(callback);
-  }
-
   // 兼容性方法
   close() {
     this.isConnected = false;
@@ -92,6 +104,6 @@ export class ChatClient {
   }
 }
 
-// 为了向后兼容，保留旧的类名作为别名
+// 保持向后兼容性，添加ChatSocket别名
 export const ChatSocket = ChatClient;
 

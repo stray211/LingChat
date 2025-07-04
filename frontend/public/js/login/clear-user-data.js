@@ -16,10 +16,6 @@ function clearAllUserData() {
   localStorage.removeItem("user");
   localStorage.removeItem("remembered_email");
   
-  // 清理聊天相关数据
-  localStorage.removeItem("currentConversationId");
-  localStorage.removeItem("lastAIResponse");
-  
   // 清理UI状态
   localStorage.removeItem("selectedAI");
   localStorage.removeItem("selectedModel");

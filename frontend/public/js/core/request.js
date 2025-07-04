@@ -5,12 +5,23 @@ class Request {
       return fetch(url, options)
         .catch((error) => {
           console.error(error);
+          throw error;
         })
-        .then((message) => {
+        .then(async (message) => {
           if (message.ok) {
             return message.json();
           } else {
-            throw message.json();
+            let errorData;
+            try {
+              errorData = await message.json();
+            } catch (e) {
+              // 如果无法解析JSON，创建一个默认错误对象
+              errorData = {
+                msg: `HTTP ${message.status}`,
+                error: message.statusText || 'Unknown error'
+              };
+            }
+            throw errorData;
           }
         });
     };
@@ -131,6 +142,20 @@ class Request {
       })
       .catch((result) => {
         throw new Error(result.detail);
+      });
+  }
+
+  historyDetail(conversationId, page = 1, pageSize = 999) {
+    return this.send("GET", "/api/v1/chat/history/detail", {
+      conversation_id: conversationId,
+      page: page,
+      page_size: pageSize,
+    })
+      .then((result) => {
+        return result.data;
+      })
+      .catch((result) => {
+        throw new Error(`${result.msg}:${result.error}`);
       });
   }
 

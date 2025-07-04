@@ -74,7 +74,20 @@ export class UIController {
         });
       })
       .catch((error) => {
-        console.log("读取失败", error);
+        console.warn("无法加载AI信息，使用默认配置", error);
+        // 使用默认配置
+        this.resetAvatar();
+        EventBus.emit("ui:name-updated", {
+          ai_name: this.ai_name,
+          ai_subtitle: this.ai_subtitle,
+          user_name: this.user_name,
+          user_subtitle: this.user_subtitle,
+        });
+        
+        // 更新状态显示
+        if (DOM.status) {
+          DOM.status.textContent = "⚠️ 无法连接后端服务";
+        }
       });
   }
 
