@@ -65,6 +65,6 @@ func Test_ChatAndParse(t *testing.T) {
 
 func Test_LingChat(t *testing.T) {
 	fmt.Println(service.LingChat(ctx, "你好",
-		"", "",
+		"", "", "default",
 	))
 }

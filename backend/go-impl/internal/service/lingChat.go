@@ -49,7 +49,7 @@ func NewLingChatService(
 	}
 }
 
-func (l *LingChatService) LingChat(ctx context.Context, message string, conversationID, prevMessageID string) (*response.CompletionResponse, error) {
+func (l *LingChatService) LingChat(ctx context.Context, message string, conversationID, prevMessageID string, characterID string) (*response.CompletionResponse, error) {
 	cleanTempVoiceFiles(l.tempFilePath)
 
 	useLegacyTempChatContext := common.UseLegacyTempChatContext(ctx)
@@ -69,7 +69,7 @@ func (l *LingChatService) LingChat(ctx context.Context, message string, conversa
 		messages = l.conversationService.legacyTempChatContext.DumpMessage()
 	} else {
 		// 记录会话和消息
-		conv, userMsgObj, err = l.conversationService.RecordConversationAndMessage(ctx, message, conversationID, prevMessageID)
+		conv, userMsgObj, err = l.conversationService.RecordConversationAndMessage(ctx, message, conversationID, prevMessageID, characterID)
 		if err != nil {
 			return nil, err
 		}

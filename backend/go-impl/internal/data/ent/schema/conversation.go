@@ -31,6 +31,10 @@ func (Conversation) Fields() []ent.Field {
 			Comment("The ID of the latest message in the conversation"),
 		field.Int64("user_id").
 			Comment("The ID of the user who owns the conversation"),
+		field.String("character_id").
+			NotEmpty().
+			Immutable().
+			Comment("The ID of the character used in the conversation"),
 	}
 }
 
@@ -57,6 +61,7 @@ func (Conversation) Indexes() []ent.Index {
 	return []ent.Index{
 		index.Fields("user_id"),
 		index.Fields("latest_message_id"),
+		index.Fields("character_id"),
 	}
 }
 

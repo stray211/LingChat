@@ -37,7 +37,7 @@ func NewConversationService(
 }
 
 // RecordConversationAndMessage 处理会话和消息存储逻辑
-func (s *ConversationService) RecordConversationAndMessage(ctx context.Context, message string, conversationID, prevMessageID string) (*ent.Conversation, *ent.ConversationMessage, error) {
+func (s *ConversationService) RecordConversationAndMessage(ctx context.Context, message string, conversationID, prevMessageID string, characterID string) (*ent.Conversation, *ent.ConversationMessage, error) {
 	var userMsgObj *ent.ConversationMessage
 	var conv *ent.Conversation
 
@@ -62,6 +62,7 @@ func (s *ConversationService) RecordConversationAndMessage(ctx context.Context, 
 			ctx,
 			title, // 使用用户消息的前20个字符作为标题
 			user.ID,
+			characterID,
 			data.MessageInput{
 				Role:    string(conversationmessage.RoleSystem),
 				Content: data.SystemPrompt,

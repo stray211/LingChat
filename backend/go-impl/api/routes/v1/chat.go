@@ -55,7 +55,7 @@ func (c *ChatRoute) chatCompletion(ctx *gin.Context) {
 		return
 	}
 
-	resp, err := c.lingChatService.LingChat(ctx, req.Message, req.ConversationID, req.PrevMessageID)
+	resp, err := c.lingChatService.LingChat(ctx, req.Message, req.ConversationID, req.PrevMessageID, req.CharacterID)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{
 			"error": "处理聊天请求失败: " + err.Error(),

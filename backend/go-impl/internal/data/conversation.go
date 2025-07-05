@@ -19,9 +19,9 @@ var (
 // ConversationRepo 定义对话和消息的仓库接口
 type ConversationRepo interface {
 	// 对话相关操作
-	CreateEmptyConversation(ctx context.Context, title string, userID int64) (*ent.Conversation, error)
-	CreateConversationWithInitialMessage(ctx context.Context, title string, userID int64, content, model string) (*ent.Conversation, *ent.ConversationMessage, error)
-	CreateConversationWithMessages(ctx context.Context, title string, userID int64, messages ...MessageInput) (*ent.Conversation, []*ent.ConversationMessage, error)
+	CreateEmptyConversation(ctx context.Context, title string, userID int64, characterID string) (*ent.Conversation, error)
+	CreateConversationWithInitialMessage(ctx context.Context, title string, userID int64, characterID string, content, model string) (*ent.Conversation, *ent.ConversationMessage, error)
+	CreateConversationWithMessages(ctx context.Context, title string, userID int64, characterID string, messages ...MessageInput) (*ent.Conversation, []*ent.ConversationMessage, error)
 	GetConversation(ctx context.Context, id int64) (*ent.Conversation, error)
 	GetConversationWithMessages(ctx context.Context, id int64) (*ent.Conversation, []*ent.ConversationMessage, error)
 	ListConversations(ctx context.Context, userID int64, offset, limit int) ([]*ent.Conversation, int, error)
@@ -51,15 +51,16 @@ func NewConversationRepo(data *Data) ConversationRepo {
 }
 
 // CreateEmptyConversation 创建新的空对话
-func (r *conversationRepo) CreateEmptyConversation(ctx context.Context, title string, userID int64) (*ent.Conversation, error) {
+func (r *conversationRepo) CreateEmptyConversation(ctx context.Context, title string, userID int64, characterID string) (*ent.Conversation, error) {
 	return r.data.db.Conversation.Create().
 		SetTitle(title).
 		SetUserID(userID).
+		SetCharacterID(characterID).
 		Save(ctx)
 }
 
 // CreateConversationWithInitialMessage 创建新对话并添加初始消息
-func (r *conversationRepo) CreateConversationWithInitialMessage(ctx context.Context, title string, userID int64, content, model string) (*ent.Conversation, *ent.ConversationMessage, error) {
+func (r *conversationRepo) CreateConversationWithInitialMessage(ctx context.Context, title string, userID int64, characterID string, content, model string) (*ent.Conversation, *ent.ConversationMessage, error) {
 	// 开始事务
 	tx, err := r.data.db.Tx(ctx)
 	if err != nil {
@@ -70,6 +71,7 @@ func (r *conversationRepo) CreateConversationWithInitialMessage(ctx context.Cont
 	conv, err := tx.Conversation.Create().
 		SetTitle(title).
 		SetUserID(userID).
+		SetCharacterID(characterID).
 		Save(ctx)
 	if err != nil {
 		return nil, nil, tx.Rollback()
@@ -405,7 +407,7 @@ type MessageInput struct {
 }
 
 // CreateConversationWithMessages 创建新对话并添加多条消息
-func (r *conversationRepo) CreateConversationWithMessages(ctx context.Context, title string, userID int64, messages ...MessageInput) (*ent.Conversation, []*ent.ConversationMessage, error) {
+func (r *conversationRepo) CreateConversationWithMessages(ctx context.Context, title string, userID int64, characterID string, messages ...MessageInput) (*ent.Conversation, []*ent.ConversationMessage, error) {
 	if len(messages) == 0 {
 		return nil, nil, errors.New("至少需要一条消息")
 	}
@@ -423,6 +425,7 @@ func (r *conversationRepo) CreateConversationWithMessages(ctx context.Context, t
 	conv, err := tx.Conversation.Create().
 		SetTitle(title).
 		SetUserID(userID).
+		SetCharacterID(characterID).
 		Save(ctx)
 	if err != nil {
 		return nil, nil, tx.Rollback()
