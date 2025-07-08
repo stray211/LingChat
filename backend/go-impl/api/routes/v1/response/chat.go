@@ -40,3 +40,17 @@ type ConversationDetailResponse struct {
 	Messages     []ConversationMessageItem `json:"messages"`
 	Total        int                       `json:"total"`
 }
+
+// CharacterItem 角色列表项
+type CharacterItem struct {
+	CharacterID string `json:"character_id"`
+	Title       string `json:"title"`
+	Info        string `json:"info"`
+	AvatarPath  string `json:"avatar_path"`
+}
+
+// CharacterListResponse 角色列表响应
+type CharacterListResponse struct {
+	Characters []CharacterItem `json:"data"`
+	Message    string          `json:"message,omitempty"`
+}

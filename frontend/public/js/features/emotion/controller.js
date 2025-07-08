@@ -1,9 +1,11 @@
 import { EMOTION_CONFIG } from "./config.js";
 import { DOM } from "../../ui/dom.js";
 import EventBus from "../../core/event-bus.js";
+import conversationState from "../../core/conversation-state.js";
 
 export class EmotionController {
-  constructor() {
+  constructor(uiController) {
+    this.uiController = uiController;
     this.currentEmotion = "normal";
     this.animationEndHandler = this._handleAnimationEnd.bind(this);
     DOM.avatar.container.addEventListener(
@@ -29,8 +31,8 @@ export class EmotionController {
     const config = EMOTION_CONFIG[emotion];
     this._clearCurrentEffects();
 
-    // 更新头像图片
-    if (config.avatar && config.avatar !== "none") {
+    // 更新头像图片（除了AI思考状态）
+    if (emotion !== "AI思考") {
       try {
         // 显示加载状态
         DOM.avatar.img.classList.add("loading");
@@ -43,29 +45,32 @@ export class EmotionController {
           DOM.avatar.img.classList.remove("loading");
         };
         img.onerror = () => {
-          console.log(`加载头像失败: ${config.avatar}`);
+          console.log(`加载头像失败: ${emotion}.png`);
           DOM.avatar.img.classList.remove("loading");
-          // 可以设置一个默认头像
-          DOM.avatar.img.src = "/api/v1/chat/character/get_avatar/正常.png";
+          // 设置默认头像
+          const characterId = conversationState.getCharacterId();
+          DOM.avatar.img.src = `/api/v1/chat/character/avatar/正常.png?character_id=${characterId}`;
         };
 
-        // 添加时间戳防止缓存
+        // 构建新的avatar URL
+        const characterId = conversationState.getCharacterId();
+        const avatarFile = `${emotion}.png`;
         const timestamp = Date.now();
-        img.src = `${config.avatar}?t=${timestamp}`;
+        img.src = `/api/v1/chat/character/avatar/${avatarFile}?character_id=${characterId}&t=${timestamp}`;
       } catch (error) {
         console.error("设置表情头像时出错:", error);
         DOM.avatar.img.classList.remove("loading");
       }
     }
 
-    // 处理动画效果
+    // 设置动画
     if (config.animation !== "none") {
       DOM.avatar.container.classList.remove(this.currentEmotion);
       DOM.avatar.container.classList.add(config.animation);
     }
 
     // 触发气泡效果
-    if (config.bubble !== "none") {
+    if (config.bubbleImage !== "none") {
       this._showBubbleEffect(config);
     }
 

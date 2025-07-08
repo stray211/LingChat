@@ -3,6 +3,7 @@ class ConversationState {
   constructor() {
     this.conversationId = '';
     this.messageId = '';
+    this.characterId = 'noiqingling'; // 默认角色ID
     this.listeners = [];
   }
 
@@ -18,10 +19,17 @@ class ConversationState {
     this.notifyListeners();
   }
 
+  // 设置角色ID
+  setCharacterId(id) {
+    this.characterId = id;
+    this.notifyListeners();
+  }
+
   // 开始新对话
   startNewConversation() {
     this.conversationId = '';
     this.messageId = '';
+    // 注意：角色ID通常不会在新对话时重置，保持当前选择的角色
     this.notifyListeners();
   }
 
@@ -33,6 +41,11 @@ class ConversationState {
   // 获取当前消息ID
   getMessageId() {
     return this.messageId;
+  }
+
+  // 获取当前角色ID
+  getCharacterId() {
+    return this.characterId;
   }
 
   // 添加状态监听器
@@ -53,7 +66,8 @@ class ConversationState {
     this.listeners.forEach(callback => {
       callback({
         conversationId: this.conversationId,
-        messageId: this.messageId
+        messageId: this.messageId,
+        characterId: this.characterId
       });
     });
   }

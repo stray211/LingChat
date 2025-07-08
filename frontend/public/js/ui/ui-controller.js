@@ -4,10 +4,11 @@ import { TypeWriter } from "./type-writer.js";
 import { EmotionController } from "../features/emotion/controller.js";
 import EventBus from "../core/event-bus.js";
 import request from "../core/request.js";
+import conversationState from "../core/conversation-state.js";
 
 export class UIController {
   constructor() {
-    this.emotionSystem = new EmotionController();
+    this.emotionSystem = new EmotionController(this);
     this.writer = new TypeWriter(DOM.input);
     this.speed = 50;
 
@@ -18,7 +19,6 @@ export class UIController {
     this.think_message = "灵灵正在思考ing...";
 
     this.userId = 1;
-    this.character_id = 1;
     this.enable_sound_effects = true;
 
     // 绑定实例方法
@@ -48,7 +48,7 @@ export class UIController {
         this.ai_subtitle = data.ai_subtitle;
         this.user_name = data.user_name;
         this.user_subtitle = data.user_subtitle;
-        this.character_id = data.character_id;
+        conversationState.setCharacterId(data.character_id);
         this.think_message = data.thinking_message;
 
         // 动态设置 transform 和 transform-origin
@@ -83,11 +83,6 @@ export class UIController {
           user_name: this.user_name,
           user_subtitle: this.user_subtitle,
         });
-        
-        // 更新状态显示
-        if (DOM.status) {
-          DOM.status.textContent = "⚠️ 无法连接后端服务";
-        }
       });
   }
 
@@ -96,7 +91,7 @@ export class UIController {
     DOM.avatar.subtitle.textContent = this.user_subtitle;
 
     this.emotionSystem.setEmotion("正常", { force: true });
-    DOM.image.kousanPreviewImg.src = `/api/v1/chat/character/get_avatar/正常.png?t=${Date.now()}`;
+    DOM.image.kousanPreviewImg.src = `/api/v1/chat/character/avatar/正常.png?character_id=${conversationState.getCharacterId()}&t=${Date.now()}`;
   }
 
   bindEventListeners() {
@@ -175,23 +170,6 @@ export class UIController {
     // 停止哔哔声音
     EventBus.on("sound:enable_effect", (enabled) => {
       this.enable_sound_effects = enabled;
-    });
-
-    // 监听 WebSocket 状态更新
-    EventBus.on("connection:open", () => {
-      if (DOM.status) DOM.status.textContent = "✅ 已连接服务器";
-      if (DOM.sendBtn) DOM.sendBtn.disabled = false;
-    });
-
-    EventBus.on("connection:dead", () => {
-      if (DOM.status) DOM.status.textContent = "❌ 无法连接服务器";
-      if (DOM.sendBtn) DOM.sendBtn.disabled = true;
-    });
-
-    EventBus.on("connection:error", (err) => {
-      console.error("连接错误：", err);
-      if (DOM.status) DOM.status.textContent = "⚠️ 连接异常";
-      if (DOM.sendBtn) DOM.sendBtn.disabled = true;
     });
   }
 

@@ -5,7 +5,6 @@ export const DOM = {
   sendBtn: document.getElementById("sendButton"),
 
   // 状态显示
-  status: document.getElementById("status"),
   audioStatus: document.getElementById("audioStatus"),
 
   // 头像区域

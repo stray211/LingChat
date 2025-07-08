@@ -260,7 +260,7 @@ const requestUtils = {
   praseFetchError: (error) => {
     switch (error) {
       case "TypeError":
-        return "网络无法连接";
+        return "网络错误";
       case "DOMException":
         return "请求已被取消";
       case "SyntaxError":

@@ -61,4 +61,4 @@ browser_data/
 #
 release/zip/
 .openmcp/
-models/
+models/backend/go-impl/app

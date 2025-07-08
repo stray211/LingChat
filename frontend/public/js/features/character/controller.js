@@ -1,6 +1,7 @@
 import { DOM } from "../../ui/dom.js";
 import { DomUtils } from "../../utils/dom-utils.js";
 import request from "../../core/request.js";
+import conversationState from "../../core/conversation-state.js";
 
 export class CharacterController {
   constructor(ui_controller) {
@@ -12,7 +13,7 @@ export class CharacterController {
     // 设置默认角色数据
     this.defaultCharacters = [
       {
-        id: 1,
+        id: "noiqingling",
         title: "默认角色",
         info: "系统默认角色，后端服务连接后将显示更多角色",
         avatar: "../pictures/characters/default.png"
@@ -26,7 +27,10 @@ export class CharacterController {
     // 使用默认角色数据渲染界面
     this.renderCharacters(this.defaultCharacters);
     this.bindEvents();
-    this.updateSelectedStatus(this.ui_controller.character_id);
+    this.updateSelectedStatus(conversationState.getCharacterId());
+    
+    // 自动加载角色列表
+    this.loadCharacters();
   }
 
   updateSelectedStatus(characterId) {
@@ -90,27 +94,9 @@ export class CharacterController {
 
   async refreshCharacters() {
     try {
-      const response = await fetch(
-        "/api/v1/chat/character/refresh_characters",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-        }
-      );
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const data = await response.json();
+      // 直接重新加载角色列表
+      await this.loadCharacters();
       alert("刷新成功");
-      
-      // 刷新成功后重新加载角色列表
-      this.loadCharacters();
-      
-      return data;
     } catch (error) {
       alert("刷新失败");
       console.error("刷新失败:", error);
@@ -124,7 +110,7 @@ export class CharacterController {
       const characters = await this.fetchCharacters();
       this.renderCharacters(characters);
       this.bindEvents();
-      this.updateSelectedStatus(this.ui_controller.character_id);
+      this.updateSelectedStatus(conversationState.getCharacterId());
     } catch (error) {
       console.error("加载角色列表失败:", error);
       // 失败时继续使用默认角色
@@ -140,11 +126,9 @@ export class CharacterController {
         id: char.character_id,
         title: char.title,
         info: char.info || "暂无角色描述",
-        // 使用新的文件获取接口
+        // 使用chat路由下的头像获取接口
         avatar: char.avatar_path
-          ? `/api/v1/chat/character/character_file/${encodeURIComponent(
-              char.avatar_path
-            )}`
+          ? `/api/v1/chat/character/avatar/头像.png?character_id=${char.character_id}`
           : "../pictures/characters/default.png",
       }));
     } catch (error) {
@@ -178,6 +162,8 @@ export class CharacterController {
     return request
       .characterSelect(this.userId, characterId)
       .then((character) => {
+        // 更新全局状态
+        conversationState.setCharacterId(characterId);
         this.updateSelectedStatus(characterId);
         return this.ui_controller.getAndApplyAIInfo();
       })

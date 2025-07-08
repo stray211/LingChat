@@ -18,6 +18,7 @@ import (
 type ChatRoute struct {
 	lingChatService     *service.LingChatService
 	conversationService *service.ConversationService
+	characterService    service.CharacterService
 	userRepo            data.UserRepo
 	jwt                 *jwt.JWT
 }
@@ -25,12 +26,14 @@ type ChatRoute struct {
 func NewChatRoute(
 	lingChatService *service.LingChatService,
 	conversationService *service.ConversationService,
+	characterService service.CharacterService,
 	userRepo data.UserRepo,
 	jwt *jwt.JWT,
 ) *ChatRoute {
 	return &ChatRoute{
 		lingChatService:     lingChatService,
 		conversationService: conversationService,
+		characterService:    characterService,
 		userRepo:            userRepo,
 		jwt:                 jwt,
 	}
@@ -43,6 +46,10 @@ func (c *ChatRoute) RegisterRoute(r *gin.RouterGroup) {
 		rg.GET("/history/list", middleware.TokenAuth(false, c.jwt, c.userRepo), c.listConversations)
 		rg.GET("/history/detail", middleware.TokenAuth(false, c.jwt, c.userRepo), c.getChatHistory)
 		rg.PUT("/history", middleware.TokenAuth(false, c.jwt, c.userRepo), c.loadChatHistory)
+
+		// 角色相关路由
+		rg.GET("/character/get_all_characters", c.getAllCharacters)
+		rg.GET("/character/avatar/:avatar_file", c.getCharacterAvatar)
 	}
 }
 
@@ -150,4 +157,78 @@ func (c *ChatRoute) loadChatHistory(ctx *gin.Context) {
 	resp := c.lingChatService.LoadChatHistory(ctx, messages)
 
 	ctx.JSON(http.StatusOK, resp)
+}
+
+// getAllCharacters 获取所有角色列表
+func (c *ChatRoute) getAllCharacters(ctx *gin.Context) {
+	// 通过服务层获取所有角色
+	characters, err := c.characterService.GetAllCharacters(ctx)
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{
+			"code": http.StatusInternalServerError,
+			"msg":  "获取角色列表失败: " + err.Error(),
+		})
+		return
+	}
+
+	// 如果没有角色，返回空列表
+	if len(characters) == 0 {
+		ctx.JSON(http.StatusOK, gin.H{
+			"code":    http.StatusOK,
+			"data":    []response.CharacterItem{},
+			"message": "未找到任何角色",
+		})
+		return
+	}
+
+	// 转换为响应格式
+	var characterItems []response.CharacterItem
+	for _, char := range characters {
+		characterItems = append(characterItems, response.CharacterItem{
+			CharacterID: char.CharacterID,
+			Title:       char.Title,
+			Info:        char.Info,
+			AvatarPath:  char.AvatarPath,
+		})
+	}
+
+	ctx.JSON(http.StatusOK, gin.H{
+		"code": http.StatusOK,
+		"data": characterItems,
+	})
+}
+
+func (c *ChatRoute) getCharacterAvatar(ctx *gin.Context) {
+	// 获取路径参数
+	avatarFile := ctx.Param("avatar_file")
+	if avatarFile == "" {
+		ctx.JSON(http.StatusBadRequest, gin.H{
+			"code": http.StatusBadRequest,
+			"msg":  "avatar_file parameter is required",
+		})
+		return
+	}
+
+	// 获取查询参数
+	characterID := ctx.Query("character_id")
+	if characterID == "" {
+		ctx.JSON(http.StatusBadRequest, gin.H{
+			"code": http.StatusBadRequest,
+			"msg":  "character_id query parameter is required",
+		})
+		return
+	}
+
+	// 通过service层获取完整的文件路径
+	fullPath, err := c.characterService.GetCharacterAvatarPath(ctx, characterID, avatarFile)
+	if err != nil {
+		ctx.JSON(http.StatusNotFound, gin.H{
+			"code": http.StatusNotFound,
+			"msg":  err.Error(),
+		})
+		return
+	}
+
+	// 返回文件
+	ctx.File(fullPath)
 }
