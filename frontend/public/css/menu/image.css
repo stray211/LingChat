@@ -115,3 +115,38 @@
 .background-select-btn.selected {
   background-color: #10b981 !important;
 }
+
+/* 删除按钮样式 */
+.background-delete-btn {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 24px;
+  height: 24px;
+  background: rgba(239, 68, 68, 0.9);
+  color: white;
+  border: none;
+  border-radius: 50%;
+  font-size: 16px;
+  font-weight: bold;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: all 0.2s ease;
+  z-index: 2;
+}
+
+.background-card:hover .background-delete-btn {
+  opacity: 1;
+}
+
+.background-delete-btn:hover {
+  background: rgba(239, 68, 68, 1);
+  transform: scale(1.1);
+}
+
+.background-delete-btn:active {
+  transform: scale(0.95);
+}

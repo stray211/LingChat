@@ -8,7 +8,7 @@ import conversationState from "../core/conversation-state.js";
 
 export class UIController {
   constructor() {
-    this.emotionSystem = new EmotionController(this);
+    this.emotionSystem = new EmotionController();
     this.writer = new TypeWriter(DOM.input);
     this.speed = 50;
 
@@ -19,6 +19,7 @@ export class UIController {
     this.think_message = "灵灵正在思考ing...";
 
     this.userId = 1;
+    this.character_id = 1;
     this.enable_sound_effects = true;
 
     // 绑定实例方法
@@ -41,14 +42,15 @@ export class UIController {
 
   // 这里是整个ui初始化的地方，务必重视
   getAndApplyAIInfo() {
+    const characterId = conversationState.getCharacterId();
     return request
-      .informationGet(this.userId)
+      .characterInfo(characterId)
       .then((data) => {
         this.ai_name = data.ai_name;
         this.ai_subtitle = data.ai_subtitle;
         this.user_name = data.user_name;
         this.user_subtitle = data.user_subtitle;
-        conversationState.setCharacterId(data.character_id);
+        this.character_id = data.character_id;
         this.think_message = data.thinking_message;
 
         // 动态设置 transform 和 transform-origin
@@ -83,6 +85,11 @@ export class UIController {
           user_name: this.user_name,
           user_subtitle: this.user_subtitle,
         });
+        
+        // 更新状态显示
+        if (DOM.status) {
+          DOM.status.textContent = "⚠️ 无法连接后端服务";
+        }
       });
   }
 

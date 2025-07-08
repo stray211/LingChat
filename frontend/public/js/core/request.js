@@ -196,6 +196,18 @@ class Request {
       });
   }
 
+  characterInfo(characterId) {
+    return this.send("GET", "/api/v1/chat/character/info", {
+      character_id: characterId,
+    })
+      .then((result) => {
+        return result.data;
+      })
+      .catch((result) => {
+        throw new Error(`${result.msg}:${result.error}`);
+      });
+  }
+
   backmusicList() {
     return this.send("GET", "/api/v1/chat/back-music/list", {}).catch(
       (result) => {

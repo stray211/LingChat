@@ -6,13 +6,15 @@ export class SoundController {
   constructor() {
     this.processing = false;
     this.domUtils = DomUtils;
-    this.musicListLoaded = false; // 添加标志，记录音乐列表是否已加载
     this.init();
   }
 
   init() {
     this.bindEvents();
     this.setupAudioControls();
+    
+    // 恢复自动加载音乐列表
+    this.loadMusicList();
   }
 
   bindEvents() {
@@ -21,17 +23,11 @@ export class SoundController {
     DOM.menuSound.addEventListener("click", () => this.showSoundPanel());
   }
 
-  async showSoundPanel() {
+  showSoundPanel() {
     this.domUtils.showElements([DOM.menuSound, DOM.soundPage]);
     this.domUtils.hideElements(
       this.domUtils.getOtherPanelElements([DOM.menuSound, DOM.soundPage])
     );
-
-    // 只在第一次打开时加载音乐列表
-    if (!this.musicListLoaded) {
-      this.loadMusicList();
-      this.musicListLoaded = true;
-    }
   }
 
   // 音频播放控制
@@ -66,9 +62,6 @@ export class SoundController {
 
     // 上传事件监听
     this.setupUploadHandler();
-    
-    // 设置默认空的音乐列表
-    this.renderMusicList([]);
   }
 
   setupVolumeControls() {

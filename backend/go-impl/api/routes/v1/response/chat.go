@@ -54,3 +54,30 @@ type CharacterListResponse struct {
 	Characters []CharacterItem `json:"data"`
 	Message    string          `json:"message,omitempty"`
 }
+
+// CharacterInfoResponse 角色信息响应
+type CharacterInfoResponse struct {
+	AIName          string `json:"ai_name"`
+	AISubtitle      string `json:"ai_subtitle"`
+	UserName        string `json:"user_name"`
+	UserSubtitle    string `json:"user_subtitle"`
+	CharacterID     string `json:"character_id"`
+	ThinkingMessage string `json:"thinking_message"`
+	Scale           string `json:"scale"`
+	Offset          string `json:"offset"`
+	BubbleTop       string `json:"bubble_top"`
+	BubbleLeft      string `json:"bubble_left"`
+}
+
+// BackgroundItem 背景项
+type BackgroundItem struct {
+	ImagePath    string  `json:"image_path"`
+	Title        string  `json:"title"`
+	ModifiedTime float64 `json:"modified_time"`
+}
+
+// BackgroundListResponse 背景列表响应
+type BackgroundListResponse struct {
+	Data    []BackgroundItem `json:"data"`
+	Message string           `json:"message,omitempty"`
+}

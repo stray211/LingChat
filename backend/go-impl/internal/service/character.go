@@ -21,6 +21,8 @@ type CharacterService interface {
 	GetCharacterByCharacterID(ctx context.Context, characterID string) (*CharacterItem, error)
 	// GetCharacterAvatarPath 获取角色头像文件的完整路径
 	GetCharacterAvatarPath(ctx context.Context, characterID string, avatarFile string) (string, error)
+	// GetCharacterInfo 根据character_id获取角色详细信息
+	GetCharacterInfo(ctx context.Context, characterID string) (*CharacterInfoItem, error)
 }
 
 // CharacterItem 角色业务对象
@@ -30,6 +32,20 @@ type CharacterItem struct {
 	Info         string `json:"info"`
 	AvatarPath   string `json:"avatar_path"`
 	ResourcePath string `json:"resource_path"`
+}
+
+// CharacterInfoItem 角色详细信息业务对象
+type CharacterInfoItem struct {
+	AIName          string `json:"ai_name"`
+	AISubtitle      string `json:"ai_subtitle"`
+	UserName        string `json:"user_name"`
+	UserSubtitle    string `json:"user_subtitle"`
+	CharacterID     string `json:"character_id"`
+	ThinkingMessage string `json:"thinking_message"`
+	Scale           string `json:"scale"`
+	Offset          string `json:"offset"`
+	BubbleTop       string `json:"bubble_top"`
+	BubbleLeft      string `json:"bubble_left"`
 }
 
 // characterService 角色服务实现
@@ -109,6 +125,56 @@ func (s *characterService) GetCharacterAvatarPath(ctx context.Context, character
 	fullPath := filepath.Join(basePath, character.ResourcePath, "avatar", avatarFile)
 
 	return fullPath, nil
+}
+
+// GetCharacterInfo 根据character_id获取角色详细信息
+func (s *characterService) GetCharacterInfo(ctx context.Context, characterID string) (*CharacterInfoItem, error) {
+	char, err := s.characterRepo.GetByCharacterID(ctx, characterID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get character by character_id: %w", err)
+	}
+
+	// 解析display_params
+	displayParams := make(map[string]interface{})
+	if char.DisplayParams != nil {
+		for k, v := range char.DisplayParams {
+			displayParams[k] = v
+		}
+	}
+
+	// 辅助函数：安全地从map中获取字符串值，支持多种类型转换
+	getString := func(key string) string {
+		if v, ok := displayParams[key]; ok {
+			switch val := v.(type) {
+			case string:
+				return val
+			case int:
+				return fmt.Sprintf("%d", val)
+			case int64:
+				return fmt.Sprintf("%d", val)
+			case float64:
+				return fmt.Sprintf("%g", val)
+			case float32:
+				return fmt.Sprintf("%g", val)
+			default:
+				return fmt.Sprintf("%v", val)
+			}
+		}
+		return ""
+	}
+
+	return &CharacterInfoItem{
+		AIName:          getString("ai_name"),
+		AISubtitle:      getString("ai_subtitle"),
+		UserName:        getString("user_name"),
+		UserSubtitle:    getString("user_subtitle"),
+		CharacterID:     char.CharacterID,
+		ThinkingMessage: getString("thinking_message"),
+		Scale:           getString("scale"),
+		Offset:          getString("offset"),
+		BubbleTop:       getString("bubble_top"),
+		BubbleLeft:      getString("bubble_left"),
+	}, nil
 }
 
 // convertToCharacterItem 将数据库实体转换为业务对象

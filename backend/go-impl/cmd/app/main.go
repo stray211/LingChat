@@ -63,10 +63,11 @@ func main() {
 	userService := service.NewUserService(userRepo, j)
 	conversationService := service.NewConversationService(conversationRepo, legacyTempChatContext, conf.Chat.Model)
 	characterService := service.NewCharacterService(characterRepo, conf)
+	backgroundService := service.NewBackgroundService(conf)
 	chatService := service.NewLingChatService(emotionPredictorClient, vitsTTSClient, llmClient, conversationService, conf.Chat.Model, conf.TempDirs.VoiceDir)
 
 	// init HTTP server
-	chatRoute := v1.NewChatRoute(chatService, conversationService, characterService, userRepo, j)
+	chatRoute := v1.NewChatRoute(chatService, conversationService, characterService, backgroundService, userRepo, j)
 	userRoute := v1.NewUserRoute(userService, userRepo, j)
 	webRoute := v1.NewWebRoute(conf.Backend.StaticDir) // 从配置获取静态文件目录
 	httpEngine := routes.NewHTTPEngine(

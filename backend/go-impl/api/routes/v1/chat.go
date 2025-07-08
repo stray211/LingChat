@@ -2,6 +2,7 @@ package v1
 
 import (
 	"net/http"
+	"os"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
@@ -19,6 +20,7 @@ type ChatRoute struct {
 	lingChatService     *service.LingChatService
 	conversationService *service.ConversationService
 	characterService    service.CharacterService
+	backgroundService   service.BackgroundService
 	userRepo            data.UserRepo
 	jwt                 *jwt.JWT
 }
@@ -27,6 +29,7 @@ func NewChatRoute(
 	lingChatService *service.LingChatService,
 	conversationService *service.ConversationService,
 	characterService service.CharacterService,
+	backgroundService service.BackgroundService,
 	userRepo data.UserRepo,
 	jwt *jwt.JWT,
 ) *ChatRoute {
@@ -34,6 +37,7 @@ func NewChatRoute(
 		lingChatService:     lingChatService,
 		conversationService: conversationService,
 		characterService:    characterService,
+		backgroundService:   backgroundService,
 		userRepo:            userRepo,
 		jwt:                 jwt,
 	}
@@ -50,6 +54,11 @@ func (c *ChatRoute) RegisterRoute(r *gin.RouterGroup) {
 		// 角色相关路由
 		rg.GET("/character/get_all_characters", c.getAllCharacters)
 		rg.GET("/character/avatar/:avatar_file", c.getCharacterAvatar)
+		rg.GET("/character/info", c.getCharacterInfo)
+
+		// 背景相关路由
+		rg.GET("/background/list", c.listBackgrounds)
+		rg.GET("/background/background_file/:background_file", c.getBackgroundFile)
 	}
 }
 
@@ -226,6 +235,114 @@ func (c *ChatRoute) getCharacterAvatar(ctx *gin.Context) {
 			"code": http.StatusNotFound,
 			"msg":  err.Error(),
 		})
+		return
+	}
+
+	// 返回文件
+	ctx.File(fullPath)
+}
+
+// getCharacterInfo 获取角色详细信息
+func (c *ChatRoute) getCharacterInfo(ctx *gin.Context) {
+	// 获取character_id参数
+	characterID := ctx.Query("character_id")
+	if characterID == "" {
+		ctx.JSON(http.StatusBadRequest, gin.H{
+			"code": http.StatusBadRequest,
+			"msg":  "character_id parameter is required",
+		})
+		return
+	}
+
+	// 通过service层获取角色详细信息
+	characterInfo, err := c.characterService.GetCharacterInfo(ctx, characterID)
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{
+			"code": http.StatusInternalServerError,
+			"msg":  "获取角色信息失败: " + err.Error(),
+		})
+		return
+	}
+
+	// 返回响应
+	ctx.JSON(http.StatusOK, gin.H{
+		"code": http.StatusOK,
+		"data": response.CharacterInfoResponse{
+			AIName:          characterInfo.AIName,
+			AISubtitle:      characterInfo.AISubtitle,
+			UserName:        characterInfo.UserName,
+			UserSubtitle:    characterInfo.UserSubtitle,
+			CharacterID:     characterInfo.CharacterID,
+			ThinkingMessage: characterInfo.ThinkingMessage,
+			Scale:           characterInfo.Scale,
+			Offset:          characterInfo.Offset,
+			BubbleTop:       characterInfo.BubbleTop,
+			BubbleLeft:      characterInfo.BubbleLeft,
+		},
+	})
+}
+
+// listBackgrounds 获取背景图片列表
+func (c *ChatRoute) listBackgrounds(ctx *gin.Context) {
+	// 调用service层获取背景列表
+	backgrounds, err := c.backgroundService.ListBackgrounds(ctx)
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{
+			"message": "获取背景列表失败",
+		})
+		return
+	}
+
+	// 如果没有找到背景图片
+	if len(backgrounds) == 0 {
+		ctx.JSON(http.StatusOK, gin.H{
+			"data":    []response.BackgroundItem{},
+			"message": "背景图片一个都没找到",
+		})
+		return
+	}
+
+	// 转换为响应格式
+	var backgroundItems []response.BackgroundItem
+	for _, bg := range backgrounds {
+		backgroundItems = append(backgroundItems, response.BackgroundItem{
+			ImagePath:    bg.ImagePath,
+			Title:        bg.Title,
+			ModifiedTime: bg.ModifiedTime,
+		})
+	}
+
+	// 返回背景列表
+	ctx.JSON(http.StatusOK, gin.H{
+		"data": backgroundItems,
+	})
+}
+
+func (c *ChatRoute) getBackgroundFile(ctx *gin.Context) {
+	// 获取路径参数
+	backgroundFile := ctx.Param("background_file")
+	if backgroundFile == "" {
+		ctx.JSON(http.StatusBadRequest, gin.H{
+			"code": http.StatusBadRequest,
+			"msg":  "background_file parameter is required",
+		})
+		return
+	}
+
+	// 通过service层获取完整的文件路径
+	fullPath, err := c.backgroundService.GetBackgroundFile(ctx, backgroundFile)
+	if err != nil {
+		if err == os.ErrNotExist {
+			ctx.JSON(http.StatusNotFound, gin.H{
+				"code":   http.StatusNotFound,
+				"detail": "Background not found",
+			})
+		} else {
+			ctx.JSON(http.StatusInternalServerError, gin.H{
+				"code": http.StatusInternalServerError,
+				"msg":  err.Error(),
+			})
+		}
 		return
 	}
 
