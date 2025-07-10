@@ -308,10 +308,10 @@ document.addEventListener("DOMContentLoaded", () => {
   function setRandomBackgroundImage() {
     // 背景图片列表
     const backgroundImages = [
-      "../pictures/backgrounds/login/01.png",
-      "../pictures/backgrounds/login/8e7a06969b6ecad17eef1914434859693493265644980448.png",
-      "../pictures/backgrounds/login/dMIq1HzJ.png",
-      "../pictures/backgrounds/login/X0_6rTZl.png",
+      "../pictures/backgrounds/login/01.jpg",
+      "../pictures/backgrounds/login/8e7a06969b6ecad17eef1914434859693493265644980448.jpg",
+      "../pictures/backgrounds/login/dMIq1HzJ.jpg",
+      "../pictures/backgrounds/login/X0_6rTZl.jpg",
     ];
 
     // 随机选择一个背景图片
