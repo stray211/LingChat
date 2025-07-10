@@ -1,5 +1,6 @@
 import EventBus from "../../core/event-bus.js";
 import { DOM } from "../../ui/dom.js";
+import { EMOTION_CONFIG } from "../emotion/config.js";
 
 export class ChatManager {
   constructor({ connection, historyManager }) {
@@ -11,6 +12,28 @@ export class ChatManager {
     this.historyManager = historyManager;
     this.setupSocketHandlers();
     this.setupEventListeners();
+  }
+
+  /**
+   * 验证并修复emotion字段
+   * @param {string} emotion - 原始emotion值
+   * @param {string} originalTag - 原始标签作为fallback
+   * @returns {string} - 修复后的emotion值
+   */
+  validateEmotion(emotion, originalTag) {
+    // 检查emotion是否为空、undefined、null或者"unknown"
+    if (!emotion || emotion === "unknown" || emotion.trim() === "") {
+      console.warn(`收到无效的emotion值: "${emotion}", 使用originalTag作为fallback: "${originalTag}"`);
+      return originalTag || "正常";
+    }
+
+    // 检查emotion是否在配置中存在
+    if (!EMOTION_CONFIG[emotion]) {
+      console.warn(`收到未知的emotion值: "${emotion}", 使用originalTag作为fallback: "${originalTag}"`);
+      return originalTag || "正常";
+    }
+
+    return emotion;
   }
 
   setupSocketHandlers() {
@@ -56,9 +79,14 @@ export class ChatManager {
 
   handleSingleMessage(data) {
     console.log("【处理单条消息】", data);
+    
+    // 验证并修复emotion字段
+    const validatedEmotion = this.validateEmotion(data.emotion, data.originalTag);
+    
     EventBus.emit("chat:message", {
       content: data.message || data.content,
-      emotion: data.emotion,
+      emotion: validatedEmotion,
+      originalTag: data.originalTag,
       audioFile: data.audioFile,
       isFinal: true,
     });
@@ -91,9 +119,15 @@ export class ChatManager {
         this.currentMessagePart.totalParts - 1
     );
 
+    // 验证并修复emotion字段
+    const validatedEmotion = this.validateEmotion(
+      this.currentMessagePart.emotion, 
+      this.currentMessagePart.originalTag
+    );
+
     EventBus.emit("chat:message", {
       content: this.currentMessagePart.message,
-      emotion: this.currentMessagePart.emotion,
+      emotion: validatedEmotion,
       originalTag: this.currentMessagePart.originalTag,
       audioFile: this.currentMessagePart.audioFile,
       isFinal:
