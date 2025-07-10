@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"log"
+	"os"
 	"time"
 
 	"github.com/joho/godotenv"
@@ -28,7 +29,7 @@ func main() {
 
 	// init Config
 	err := godotenv.Load()
-	if err != nil {
+	if err != nil && os.Getenv("LINGCHAT_ENV_EXISTS") != "true" {
 		log.Fatal("无法加载 .env 文件: ", err)
 	}
 	conf := config.GetConfigFromEnv()
