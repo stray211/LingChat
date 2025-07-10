@@ -80,6 +80,9 @@ export class ChatClient {
         conversationState.setConversationId(result.data.conversation_id);
         conversationState.setMessageId(result.data.message_id);
         
+        // AI回复返回，结束思考状态，启用按钮
+        EventBus.emit("chat:thinking", false);
+        
         // 模拟WebSocket消息事件，为每个消息分别触发
         result.data.messages.forEach(message => {
           const messageEvent = {

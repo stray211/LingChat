@@ -19,23 +19,25 @@ const port = window.location.port || (protocol === "https:" ? "443" : "80");
 const baseUrl = `${protocol}//${host}:${port}`;
 const socket = new ChatSocket(baseUrl);
 
-const uiController = new UIController();
-const historyManager = new HistoryManager();
-const chatManager = new ChatManager({
-  connection: socket,
-  historyManager: historyManager,
-});
-const soundController = new SoundController();
-const menuController = new MenuController(uiController);
-const imageController = new ImageController();
-const saveController = new SaveController();
-const characterController = new CharacterController(uiController);
-const accountController = new AccountController();
-
-// 多模块组合处理函数
+// 全局变量声明
+let uiController, historyManager, chatManager, soundController, menuController, imageController, saveController, characterController, accountController;
 
 // 初始化应用
 document.addEventListener("DOMContentLoaded", () => {
+  // 在DOM加载完成后初始化所有控制器
+  uiController = new UIController();
+  historyManager = new HistoryManager();
+  chatManager = new ChatManager({
+    connection: socket,
+    historyManager: historyManager,
+  });
+  soundController = new SoundController();
+  menuController = new MenuController(uiController);
+  imageController = new ImageController();
+  saveController = new SaveController();
+  characterController = new CharacterController(uiController);
+  accountController = new AccountController();
+
   const canvas = DOM.canvas;
 
   if (canvas) {

@@ -33,6 +33,24 @@ export class UIController {
     this.bindEventListeners();
     this.bindEvents();
     this.getAndApplyAIInfo();
+    
+    // 确保按钮在初始化时启用
+    this.ensureButtonEnabled();
+  }
+
+  ensureButtonEnabled() {
+    // 使用setTimeout确保DOM元素已经可用
+    setTimeout(() => {
+      if (DOM.sendBtn) {
+        DOM.sendBtn.disabled = false;
+      } else {
+        // 如果还是找不到，再尝试直接通过ID获取
+        const btn = document.getElementById("sendButton");
+        if (btn) {
+          btn.disabled = false;
+        }
+      }
+    }, 100);
   }
 
   destroy() {
@@ -96,6 +114,14 @@ export class UIController {
   resetAvatar() {
     DOM.avatar.title.textContent = this.user_name;
     DOM.avatar.subtitle.textContent = this.user_subtitle;
+    
+    // 初始化时启用发送按钮和输入框
+    if (DOM.sendBtn) {
+      DOM.sendBtn.disabled = false;
+    }
+    
+    // 确保输入框初始化时可编辑
+    DOM.input.readOnly = false;
 
     this.emotionSystem.setEmotion("正常", { force: true });
     DOM.image.kousanPreviewImg.src = `/api/v1/chat/character/avatar/正常.png?character_id=${conversationState.getCharacterId()}&t=${Date.now()}`;
@@ -144,6 +170,9 @@ export class UIController {
         this.writer.setSoundEnabled(false);
       }
 
+      // AI回复显示期间，设置输入框为只读状态，防止用户编辑AI回复
+      DOM.input.readOnly = true;
+
       // 显示消息内容
       this.writer.start(displayText, this.speed);
     });
@@ -152,6 +181,10 @@ export class UIController {
     EventBus.on("chat:input-enabled", () => {
       DOM.input.placeholder = "输入消息...";
       DOM.input.disabled = false;
+      DOM.input.readOnly = false;  // 移除只读状态，允许用户输入
+      if (DOM.sendBtn) {
+        DOM.sendBtn.disabled = false;  // 启用发送按钮
+      }
       DOM.input.value = "";
       DOM.avatar.title.textContent = this.user_name;
       DOM.avatar.subtitle.textContent = this.user_subtitle;
@@ -163,6 +196,10 @@ export class UIController {
     EventBus.on("chat:thinking", (isThinking) => {
       if (isThinking) {
         DOM.input.disabled = true;
+        DOM.input.readOnly = true;  // AI思考时也设为只读
+        if (DOM.sendBtn) {
+          DOM.sendBtn.disabled = true;  // 禁用发送按钮
+        }
         DOM.input.value = "";
         this.emotionSystem.setEmotion("AI思考");
         DOM.input.placeholder = this.think_message;
@@ -171,6 +208,11 @@ export class UIController {
         DOM.avatar.emotion.textContent = "";
       } else {
         DOM.input.disabled = false;
+        // 注意：这里不移除readOnly，因为可能马上要显示AI回复
+        // readOnly状态会在chat:input-enabled事件中正确处理
+        if (DOM.sendBtn) {
+          DOM.sendBtn.disabled = false;  // 启用发送按钮
+        }
       }
     });
 
