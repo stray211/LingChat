@@ -178,6 +178,189 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse' # Uses "error" key
 
+  /v1/chat/character/get_all_characters:
+    get:
+      summary: Get All Characters
+      tags:
+        - Character
+      responses:
+        '200':
+          description: Successfully retrieved character list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CharacterListResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /v1/chat/character/avatar/{avatar_file}:
+    get:
+      summary: Get Character Avatar
+      tags:
+        - Character
+      parameters:
+        - name: avatar_file
+          in: path
+          description: Avatar file name
+          required: true
+          schema:
+            type: string
+        - name: character_id
+          in: query
+          description: Character ID
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Avatar file
+          content:
+            image/*:
+              schema:
+                type: string
+                format: binary
+        '400':
+          description: Invalid request parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Avatar file not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /v1/chat/character/info:
+    get:
+      summary: Get Character Information
+      tags:
+        - Character
+      parameters:
+        - name: character_id
+          in: query
+          description: Character ID
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successfully retrieved character information
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CharacterInfoAPIResponse'
+        '400':
+          description: Invalid request parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /v1/chat/background/list:
+    get:
+      summary: Get Background List
+      tags:
+        - Background
+      responses:
+        '200':
+          description: Successfully retrieved background list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BackgroundListResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BackgroundListResponse'
+
+  /v1/chat/background/background_file/{background_file}:
+    get:
+      summary: Get Background File
+      tags:
+        - Background
+      parameters:
+        - name: background_file
+          in: path
+          description: Background file name
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Background file
+          content:
+            image/*:
+              schema:
+                type: string
+                format: binary
+        '400':
+          description: Invalid request parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Background file not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /v1/chat/voice/status/{filename}:
+    get:
+      summary: Get Voice File Status
+      tags:
+        - Voice
+      security:
+        - bearerAuth: [ ]
+        - cookieAuth: [ ]
+      parameters:
+        - name: filename
+          in: path
+          description: Voice file name
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Voice file status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VoiceFileStatusResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Voice file not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
   /v1/chat/history/list:
     get:
       summary: List User Conversations
@@ -312,6 +495,194 @@ paths:
         '400':
           description: WebSocket upgrade failed.
 
+  # Web Routes (static file serving)
+  /css/{filepath}:
+    servers:
+      - url: /
+        description: Static file path (no /api prefix)
+    get:
+      summary: Serve CSS Files
+      tags:
+        - Static Files
+      parameters:
+        - name: filepath
+          in: path
+          description: CSS file path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: CSS file
+          content:
+            text/css:
+              schema:
+                type: string
+        '404':
+          description: File not found
+
+  /js/{filepath}:
+    servers:
+      - url: /
+        description: Static file path (no /api prefix)
+    get:
+      summary: Serve JavaScript Files
+      tags:
+        - Static Files
+      parameters:
+        - name: filepath
+          in: path
+          description: JavaScript file path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: JavaScript file
+          content:
+            application/javascript:
+              schema:
+                type: string
+        '404':
+          description: File not found
+
+  /pictures/{filepath}:
+    servers:
+      - url: /
+        description: Static file path (no /api prefix)
+    get:
+      summary: Serve Picture Files
+      tags:
+        - Static Files
+      parameters:
+        - name: filepath
+          in: path
+          description: Picture file path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Picture file
+          content:
+            image/*:
+              schema:
+                type: string
+                format: binary
+        '404':
+          description: File not found
+
+  /audio_effects/{filepath}:
+    servers:
+      - url: /
+        description: Static file path (no /api prefix)
+    get:
+      summary: Serve Audio Effect Files
+      tags:
+        - Static Files
+      parameters:
+        - name: filepath
+          in: path
+          description: Audio file path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Audio file
+          content:
+            audio/*:
+              schema:
+                type: string
+                format: binary
+        '404':
+          description: File not found
+
+  /audio/{filepath}:
+    servers:
+      - url: /
+        description: Audio file path (no /api prefix)
+    get:
+      summary: Serve Audio Files
+      description: Custom audio file handler supporting lookup in odd/even subdirectories
+      tags:
+        - Audio
+      parameters:
+        - name: filepath
+          in: path
+          description: Audio file path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Audio file
+          content:
+            audio/*:
+              schema:
+                type: string
+                format: binary
+        '400':
+          description: Invalid file path
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Audio file not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /:
+    servers:
+      - url: /
+        description: Root path (no /api prefix)
+    get:
+      summary: Main Application Page
+      tags:
+        - Web Pages
+      responses:
+        '200':
+          description: Main HTML page
+          content:
+            text/html:
+              schema:
+                type: string
+
+  /login:
+    servers:
+      - url: /
+        description: Login path (no /api prefix)
+    get:
+      summary: Login Page
+      tags:
+        - Web Pages
+      responses:
+        '200':
+          description: Login HTML page
+          content:
+            text/html:
+              schema:
+                type: string
+
+  /about:
+    servers:
+      - url: /
+        description: About path (no /api prefix)
+    get:
+      summary: About Page
+      tags:
+        - Web Pages
+      responses:
+        '200':
+          description: About HTML page
+          content:
+            text/html:
+              schema:
+                type: string
+
 
 components:
   schemas:
@@ -422,6 +793,9 @@ components:
         prev_message_id:
           type: string
           description: ID of the previous message in the conversation (optional).
+        character_id:
+          type: string
+          description: ID of the character to use for the conversation (optional).
 
     WebSocketMessageContent: # Based on ws/types/data.go Response struct
       type: object
@@ -613,6 +987,109 @@ components:
 
     WebSocketOutgoingMessage: # This is effectively WebSocketMessageContent
       $ref: '#/components/schemas/WebSocketMessageContent'
+
+    # Character related schemas
+    CharacterItem:
+      type: object
+      properties:
+        character_id:
+          type: string
+        title:
+          type: string
+        info:
+          type: string
+        avatar_path:
+          type: string
+
+    CharacterListResponse:
+      type: object
+      properties:
+        code:
+          type: integer
+          example: 200
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/CharacterItem'
+        message:
+          type: string
+
+    CharacterInfoResponse:
+      type: object
+      properties:
+        ai_name:
+          type: string
+        ai_subtitle:
+          type: string
+        user_name:
+          type: string
+        user_subtitle:
+          type: string
+        character_id:
+          type: string
+        thinking_message:
+          type: string
+        scale:
+          type: string
+        offset:
+          type: string
+        bubble_top:
+          type: string
+        bubble_left:
+          type: string
+
+    CharacterInfoAPIResponse:
+      type: object
+      properties:
+        code:
+          type: integer
+          example: 200
+        data:
+          $ref: '#/components/schemas/CharacterInfoResponse'
+
+    # Background related schemas
+    BackgroundItem:
+      type: object
+      properties:
+        image_path:
+          type: string
+        title:
+          type: string
+        modified_time:
+          type: number
+          format: float
+
+    BackgroundListResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/BackgroundItem'
+        message:
+          type: string
+
+    # Voice status schema
+    VoiceFileStatusResponse:
+      type: object
+      properties:
+        code:
+          type: integer
+          example: 200
+        data:
+          type: object
+          properties:
+            filename:
+              type: string
+              description: The voice file name
+            create_at:
+              type: string
+              format: date-time
+              description: When the voice file was created
+            status:
+              type: string
+              description: Status of the voice file
+              enum: ["pending", "ready", "failed", "Invalid"]
 
 
   securitySchemes:
