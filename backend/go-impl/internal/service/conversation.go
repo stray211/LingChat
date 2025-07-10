@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 	"strconv"
 	"time"
 
@@ -19,6 +20,7 @@ import (
 // ConversationService 处理与对话相关的业务逻辑
 type ConversationService struct {
 	conversationRepo      data.ConversationRepo
+	characterRepo         data.CharacterRepo
 	legacyTempChatContext *data.LegacyTempChatContext
 	configModel           string
 }
@@ -26,11 +28,13 @@ type ConversationService struct {
 // NewConversationService 创建一个新的 ConversationService 实例
 func NewConversationService(
 	conversationRepo data.ConversationRepo,
+	characterRepo data.CharacterRepo,
 	legacyTempChatContext *data.LegacyTempChatContext,
 	configModel string,
 ) *ConversationService {
 	return &ConversationService{
 		conversationRepo:      conversationRepo,
+		characterRepo:         characterRepo,
 		legacyTempChatContext: legacyTempChatContext,
 		configModel:           configModel,
 	}
@@ -60,9 +64,24 @@ func (s *ConversationService) RecordConversationAndMessage(ctx context.Context, 
 			characterID = "noiqingling"
 		}
 
+		// 根据characterID获取角色的系统提示词
+		var systemPrompt string
+		character, err := s.characterRepo.GetByCharacterID(ctx, characterID)
+		if err != nil {
+			// 如果获取角色失败，使用默认系统提示词
+			log.Printf("Failed to get character %s: %v, using default system prompt", characterID, err)
+			systemPrompt = data.SystemPrompt
+		} else {
+			// 使用角色的系统提示词，如果为空则使用默认值
+			if character.SystemPrompt != "" {
+				systemPrompt = character.SystemPrompt
+			} else {
+				systemPrompt = data.SystemPrompt
+			}
+		}
+
 		// 两者都为空，创建新的对话和消息
 		var userMsgObjs []*ent.ConversationMessage
-		var err error
 		conv, userMsgObjs, err = s.conversationRepo.CreateConversationWithMessages(
 			ctx,
 			title, // 使用用户消息的前20个字符作为标题
@@ -70,7 +89,7 @@ func (s *ConversationService) RecordConversationAndMessage(ctx context.Context, 
 			characterID,
 			data.MessageInput{
 				Role:    string(conversationmessage.RoleSystem),
-				Content: data.SystemPrompt,
+				Content: systemPrompt,
 			},
 			data.MessageInput{
 				Role:    string(conversationmessage.RoleUser),

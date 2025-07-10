@@ -41,9 +41,10 @@ func init() {
 	}
 	d, _, err := data.NewData(entClient, nil)
 	conversationRepo := data.NewConversationRepo(d)
+	characterRepo := data.NewCharacterRepo(d)
 	legacyTempChatContext := data.NewLegacyTempChatContext()
 
-	conversationService := NewConversationService(conversationRepo, legacyTempChatContext, conf.Chat.Model)
+	conversationService := NewConversationService(conversationRepo, characterRepo, legacyTempChatContext, conf.Chat.Model)
 	service, err = NewLingChatService(emotionPredictorClient, vitsTTSClient, llmClient, conversationService, conf.Chat.Model, conf.TempDirs.VoiceDir)
 	if err != nil {
 		log.Fatal("Failed to create LingChatService: ", err)

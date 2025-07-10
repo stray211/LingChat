@@ -69,7 +69,7 @@ func main() {
 
 	// init Service
 	userService := service.NewUserService(userRepo, j)
-	conversationService := service.NewConversationService(conversationRepo, legacyTempChatContext, conf.Chat.Model)
+	conversationService := service.NewConversationService(conversationRepo, characterRepo, legacyTempChatContext, conf.Chat.Model)
 	characterService := service.NewCharacterService(characterRepo, conf)
 	backgroundService := service.NewBackgroundService(conf)
 	chatService, err := service.NewLingChatService(emotionPredictorClient, vitsTTSClient, llmClient, conversationService, conf.Chat.Model, conf.TempDirs.VoiceDir)
