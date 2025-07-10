@@ -55,7 +55,7 @@ func (s *WebSocketEngine) LingChatHandler(rawMsg []byte) ([]types.RawResponse, e
 	defer cancel()
 
 	// WebSocket固定使用默认character_id
-	resp, err := s.LingChatService.LingChat(ctx, msg.Content, "", "", "default")
+	resp, err := s.LingChatService.LingChat(ctx, msg.Content, "", "", "noiqingling")
 	if err != nil {
 		err = fmt.Errorf("LingChat error: %w", err)
 		log.Println(err)

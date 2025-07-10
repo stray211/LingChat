@@ -44,7 +44,10 @@ func init() {
 	legacyTempChatContext := data.NewLegacyTempChatContext()
 
 	conversationService := NewConversationService(conversationRepo, legacyTempChatContext, conf.Chat.Model)
-	service = NewLingChatService(emotionPredictorClient, vitsTTSClient, llmClient, conversationService, conf.Chat.Model, conf.TempDirs.VoiceDir)
+	service, err = NewLingChatService(emotionPredictorClient, vitsTTSClient, llmClient, conversationService, conf.Chat.Model, conf.TempDirs.VoiceDir)
+	if err != nil {
+		log.Fatal("Failed to create LingChatService: ", err)
+	}
 }
 
 func Test_ChatAndParse(t *testing.T) {
@@ -60,7 +63,9 @@ func Test_ChatAndParse(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	fmt.Println(AnalyzeEmotions(rawResp, service.tempFilePath, "wav"))
+	results := AnalyzeEmotions(rawResp)
+	results = GenerateVoiceFileNames(results, "wav", service.voiceStatusTracker)
+	fmt.Println(results)
 }
 
 func Test_LingChat(t *testing.T) {

@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"sync"
+	"time"
 
 	"github.com/sashabaranov/go-openai"
 
@@ -28,6 +29,7 @@ type LingChatService struct {
 	conversationService    *ConversationService
 	ConfigModel            string
 	tempFilePath           string
+	voiceStatusTracker     *VoiceStatusTracker
 }
 
 func NewLingChatService(
@@ -37,7 +39,12 @@ func NewLingChatService(
 	conversationService *ConversationService,
 	configModel string,
 	path string,
-) *LingChatService {
+) (*LingChatService, error) {
+
+	statusTracker, err := NewVoiceStatusTracker()
+	if err != nil {
+		return nil, fmt.Errorf("failed to create voice status tracker: %w", err)
+	}
 
 	return &LingChatService{
 		emotionPredictorClient: epClient,
@@ -46,11 +53,11 @@ func NewLingChatService(
 		conversationService:    conversationService,
 		ConfigModel:            configModel,
 		tempFilePath:           path,
-	}
+		voiceStatusTracker:     statusTracker,
+	}, nil
 }
 
 func (l *LingChatService) LingChat(ctx context.Context, message string, conversationID, prevMessageID string, characterID string) (*response.CompletionResponse, error) {
-	cleanTempVoiceFiles(l.tempFilePath)
 
 	useLegacyTempChatContext := common.UseLegacyTempChatContext(ctx)
 	var (
@@ -102,13 +109,11 @@ func (l *LingChatService) LingChat(ctx context.Context, message string, conversa
 		}
 	}
 
-	emotionSegments := AnalyzeEmotions(rawLLMResp, l.tempFilePath, "wav")
+	emotionSegments := AnalyzeEmotions(rawLLMResp)
+	emotionSegments = GenerateVoiceFileNames(emotionSegments, "wav", l.voiceStatusTracker)
 
 	// TODO: 这里两条会耦合使用emotionSegments的字段，后面要改
-	_, err = l.GenerateVoice(ctx, emotionSegments, true)
-	if err != nil {
-		log.Printf("GenerateVoice error: %s", err)
-	}
+	l.GenerateVoice(ctx, emotionSegments, l.tempFilePath, true)
 	emotionSegments = l.EmoPredictBatch(ctx, emotionSegments)
 
 	convID := 0
@@ -143,7 +148,7 @@ func (l *LingChatService) CreateResponse(results []Result, userMessage string) [
 			OriginalTag:     result.OriginalTag,
 			Message:         result.FollowingText,
 			MotionText:      result.MotionText,
-			AudioFile:       filepath.Base(result.VoiceFile),
+			AudioFile:       result.VoiceFile,
 			OriginalMessage: userMessage,
 			IsMultiPart:     true,
 			PartIndex:       i,
@@ -154,6 +159,10 @@ func (l *LingChatService) CreateResponse(results []Result, userMessage string) [
 }
 
 func (l *LingChatService) EmoPredictBatch(ctx context.Context, results []Result) []Result {
+	// 创建4秒超时的上下文
+	timeoutCtx, cancel := context.WithTimeout(ctx, 4*time.Second)
+	defer cancel()
+
 	var wg sync.WaitGroup
 	resultsChannel := make(chan struct {
 		index      int
@@ -164,7 +173,7 @@ func (l *LingChatService) EmoPredictBatch(ctx context.Context, results []Result)
 		wg.Add(1)
 		go func(index int, result Result) {
 			defer wg.Done()
-			resp, err := l.emotionPredictorClient.Predict(ctx, result.OriginalTag, 0.08)
+			resp, err := l.emotionPredictorClient.Predict(timeoutCtx, result.OriginalTag, 0.08)
 			if err != nil {
 				log.Printf("Failed to predict emotion: %v", err)
 				resultsChannel <- struct {
@@ -199,85 +208,65 @@ func (l *LingChatService) EmoPredictBatch(ctx context.Context, results []Result)
 	return results
 }
 
-func (l *LingChatService) GenerateVoice(ctx context.Context, textSegments []Result, saveFile bool) ([][]byte, error) {
-	// 创建一个带缓冲的通道来收集结果
-	results := make(chan struct {
-		index int
-		data  []byte
-		err   error
-	}, len(textSegments))
-
-	// 创建 WaitGroup
-	var wg sync.WaitGroup
-	wg.Add(len(textSegments))
-
-	// 为每个文本片段启动一个goroutine
+func (l *LingChatService) GenerateVoice(ctx context.Context, textSegments []Result, tempFilePath string, saveFile bool) {
+	// 为每个文本片段启动一个独立的goroutine，立即返回
 	for i, segment := range textSegments {
-		go func(idx int, text string) {
-			defer wg.Done()
+		go func(idx int, text, voiceFileName string, statusTracker *VoiceStatusTracker) {
+			var status string
+
 			// 调用VITS TTS服务生成语音
 			audioData, err := l.VitsTTSClient.VoiceVITS(ctx, text)
-			results <- struct {
-				index int
-				data  []byte
-				err   error
-			}{idx, audioData, err}
-		}(i, segment.JapaneseText)
-	}
+			if err != nil {
+				log.Printf("Failed to generate voice for segment %d: %v", idx, err)
+				status = StatusFailed
+			} else {
+				// 如果需要保存文件且有音频数据
+				if saveFile && len(audioData) != 0 {
+					// 根据当前时间的小时数奇偶性决定子目录（以便定时清理）
+					hour := time.Now().Hour()
+					subDir := "even"
+					if hour%2 == 1 {
+						subDir = "odd"
+					}
 
-	// 等待所有goroutine完成
-	go func() {
-		wg.Wait()
-		close(results)
-	}()
+					// 拼接完整的文件路径：tempFilePath/odd或even/voiceFileName
+					fullVoicePath := filepath.Join(tempFilePath, subDir, voiceFileName)
 
-	// 收集所有结果
-	audioDataList := make([][]byte, len(textSegments))
-	var firstErr error
-
-	// 从通道中读取结果
-	for result := range results {
-		if result.err != nil && firstErr == nil {
-			firstErr = result.err
-		}
-		audioDataList[result.index] = result.data
-
-		// 如果保存文件，将音频数据写入文件
-		if saveFile && len(result.data) != 0 {
-			voiceFile := textSegments[result.index].VoiceFile
-			// 确保目录存在
-			dir := filepath.Dir(voiceFile)
-			if err := os.MkdirAll(dir, 0755); err != nil {
-				log.Printf("Failed to create directory %s: %v", dir, err)
-				continue
+					// 确保目录存在
+					dir := filepath.Dir(fullVoicePath)
+					if err := os.MkdirAll(dir, 0755); err != nil {
+						log.Printf("Failed to create directory %s: %v", dir, err)
+						status = StatusFailed
+					} else {
+						// 写入文件
+						if err := os.WriteFile(fullVoicePath, audioData, 0644); err != nil {
+							log.Printf("Failed to write file %s: %v", fullVoicePath, err)
+							status = StatusFailed
+						} else {
+							status = StatusReady
+						}
+					}
+				} else {
+					status = StatusReady // 即使不保存文件，生成成功也算ready
+				}
 			}
 
-			// 写入文件
-			if err := os.WriteFile(voiceFile, result.data, 0644); err != nil {
-				log.Printf("Failed to write file %s: %v", voiceFile, err)
-				continue
+			// 更新状态
+			if statusTracker != nil {
+				if err := statusTracker.UpdateStatus(voiceFileName, status); err != nil {
+					log.Printf("Failed to update status for %s to %s: %v", voiceFileName, status, err)
+				}
 			}
-		}
+		}(i, segment.JapaneseText, segment.VoiceFile, l.voiceStatusTracker)
 	}
-
-	return audioDataList, firstErr
 }
 
-func cleanTempVoiceFiles(tempVoiceDir string) {
-	// 检查目录是否存在
-	if _, err := os.Stat(tempVoiceDir); err == nil {
-		// 获取所有.wav文件
-		wavFiles, err := filepath.Glob(filepath.Join(tempVoiceDir, "*.wav"))
-		if err != nil {
-			fmt.Printf("查找wav文件时出错: %v\n", err)
-			return
-		}
+// GetVoiceFileStatus 根据文件名查询语音文件状态
+func (l *LingChatService) GetVoiceFileStatus(filename string) VoiceFileStatus {
+	return l.voiceStatusTracker.GetStatus(filename)
+}
 
-		// 删除每个文件
-		for _, file := range wavFiles {
-			if err := os.Remove(file); err != nil {
-				fmt.Printf("删除文件 %s 时出错: %v\n", file, err)
-			}
-		}
-	}
+// Close 关闭服务，清理资源
+func (l *LingChatService) Close() error {
+	return l.voiceStatusTracker.Close()
 }

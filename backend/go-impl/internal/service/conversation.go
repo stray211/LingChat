@@ -55,6 +55,11 @@ func (s *ConversationService) RecordConversationAndMessage(ctx context.Context, 
 	// 将会话存储到数据库中
 	switch {
 	case conversationID == "" && prevMessageID == "":
+
+		if characterID == "" {
+			characterID = "noiqingling"
+		}
+
 		// 两者都为空，创建新的对话和消息
 		var userMsgObjs []*ent.ConversationMessage
 		var err error

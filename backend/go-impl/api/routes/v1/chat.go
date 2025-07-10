@@ -43,22 +43,25 @@ func NewChatRoute(
 	}
 }
 
-func (c *ChatRoute) RegisterRoute(r *gin.RouterGroup) {
+func (cr *ChatRoute) RegisterRoute(r *gin.RouterGroup) {
 	rg := r.Group("/v1/chat")
 	{
-		rg.POST("/completion", middleware.TokenAuth(false, c.jwt, c.userRepo), c.chatCompletion)
-		rg.GET("/history/list", middleware.TokenAuth(false, c.jwt, c.userRepo), c.listConversations)
-		rg.GET("/history/detail", middleware.TokenAuth(false, c.jwt, c.userRepo), c.getChatHistory)
-		rg.PUT("/history", middleware.TokenAuth(false, c.jwt, c.userRepo), c.loadChatHistory)
+		rg.POST("/completion", middleware.TokenAuth(false, cr.jwt, cr.userRepo), cr.chatCompletion)
+		rg.GET("/history/list", middleware.TokenAuth(false, cr.jwt, cr.userRepo), cr.listConversations)
+		rg.GET("/history/detail", middleware.TokenAuth(false, cr.jwt, cr.userRepo), cr.getChatHistory)
+		rg.PUT("/history", middleware.TokenAuth(false, cr.jwt, cr.userRepo), cr.loadChatHistory)
 
 		// 角色相关路由
-		rg.GET("/character/get_all_characters", c.getAllCharacters)
-		rg.GET("/character/avatar/:avatar_file", c.getCharacterAvatar)
-		rg.GET("/character/info", c.getCharacterInfo)
+		rg.GET("/character/get_all_characters", cr.getAllCharacters)
+		rg.GET("/character/avatar/:avatar_file", cr.getCharacterAvatar)
+		rg.GET("/character/info", cr.getCharacterInfo)
 
 		// 背景相关路由
-		rg.GET("/background/list", c.listBackgrounds)
-		rg.GET("/background/background_file/:background_file", c.getBackgroundFile)
+		rg.GET("/background/list", cr.listBackgrounds)
+		rg.GET("/background/background_file/:background_file", cr.getBackgroundFile)
+
+		// 语音文件状态查询路由
+		rg.GET("/voice/status/:filename", middleware.TokenAuth(false, cr.jwt, cr.userRepo), cr.getVoiceFileStatus)
 	}
 }
 
@@ -348,4 +351,28 @@ func (c *ChatRoute) getBackgroundFile(ctx *gin.Context) {
 
 	// 返回文件
 	ctx.File(fullPath)
+}
+
+// getVoiceFileStatus 查询语音文件状态
+func (c *ChatRoute) getVoiceFileStatus(ctx *gin.Context) {
+	filename := ctx.Param("filename")
+	if filename == "" {
+		ctx.JSON(http.StatusBadRequest, gin.H{
+			"code": http.StatusBadRequest,
+			"msg":  "文件名不能为空",
+		})
+		return
+	}
+
+	// 查询文件状态
+	status := c.lingChatService.GetVoiceFileStatus(filename)
+
+	ctx.JSON(http.StatusOK, gin.H{
+		"code": http.StatusOK,
+		"data": gin.H{
+			"filename":  filename,
+			"create_at": status.CreateAt,
+			"status":    status.Status,
+		},
+	})
 }

@@ -2,18 +2,21 @@ package v1
 
 import (
 	"net/http"
+	"os"
 	"path/filepath"
 
 	"github.com/gin-gonic/gin"
 )
 
 type WebRoute struct {
-	staticDir string
+	staticDir    string
+	tempVoiceDir string
 }
 
-func NewWebRoute(staticDir string) *WebRoute {
+func NewWebRoute(staticDir, tempVoiceDir string) *WebRoute {
 	return &WebRoute{
-		staticDir: staticDir,
+		staticDir:    staticDir,
+		tempVoiceDir: tempVoiceDir,
 	}
 }
 
@@ -30,10 +33,50 @@ func (w *WebRoute) RegisterWebRoute(engine *gin.Engine) {
 	engine.Static("/pictures", filepath.Join(w.staticDir, "pictures"))
 	engine.Static("/audio_effects", filepath.Join(w.staticDir, "audio_effects"))
 
+	// 为临时音频文件提供自定义静态文件服务，支持从odd/even子目录中查找
+	engine.GET("/audio/*filepath", w.audioFileHandler)
+
 	// 页面路由
 	engine.GET("/", w.indexPage)
 	engine.GET("/login", w.loginPage)
 	engine.GET("/about", w.aboutPage)
+}
+
+// audioFileHandler 自定义音频文件处理器，支持从odd/even子目录中查找文件
+func (w *WebRoute) audioFileHandler(c *gin.Context) {
+	requestPath := c.Param("filepath")
+	if requestPath == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "File path is required"})
+		return
+	}
+
+	// 去掉路径开头的斜杠
+	if requestPath[0] == '/' {
+		requestPath = requestPath[1:]
+	}
+
+	// 尝试在odd和even目录中查找文件
+	subDirs := []string{"odd", "even"}
+
+	for _, subDir := range subDirs {
+		fullPath := filepath.Join(w.tempVoiceDir, subDir, requestPath)
+
+		// 检查文件是否存在
+		if _, err := os.Stat(fullPath); err == nil {
+			c.File(fullPath)
+			return
+		}
+	}
+
+	// 如果在子目录中都没找到，尝试直接在根目录查找（向后兼容）
+	directPath := filepath.Join(w.tempVoiceDir, requestPath)
+	if _, err := os.Stat(directPath); err == nil {
+		c.File(directPath)
+		return
+	}
+
+	// 文件未找到
+	c.JSON(http.StatusNotFound, gin.H{"error": "File not found"})
 }
 
 // indexPage 处理根路径，返回index.html

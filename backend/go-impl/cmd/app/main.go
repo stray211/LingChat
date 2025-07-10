@@ -16,6 +16,7 @@ import (
 	"LingChat/internal/clients/emotionPredictor"
 	"LingChat/internal/clients/llm"
 	"LingChat/internal/config"
+	"LingChat/internal/cron"
 	"LingChat/internal/data"
 	"LingChat/internal/service"
 	"LingChat/pkg/jwt"
@@ -44,6 +45,13 @@ func main() {
 	vitsTTSClient := VitsTTS.NewClient(conf.Vits.APIURL, conf.TempDirs.VoiceDir, conf.Vits.SpeakerID)
 	llmClient := llm.NewLLMClient(conf.Chat.BaseURL, conf.Chat.APIKey)
 
+	// init Cron Client
+	cronClient := cron.NewClient(conf.TempDirs.VoiceDir)
+	if err := cronClient.StartAsync(); err != nil {
+		log.Fatal("Failed to start cron scheduler: ", err)
+	}
+	defer cronClient.Stop()
+
 	// init Data & Repos
 	entClient, err := data.NewEntClient(ctx, conf.Data.DataBase.Driver, conf.Data.DataBase.Source, conf.Data.DataBase.AutoMigrate)
 	if err != nil {
@@ -64,12 +72,20 @@ func main() {
 	conversationService := service.NewConversationService(conversationRepo, legacyTempChatContext, conf.Chat.Model)
 	characterService := service.NewCharacterService(characterRepo, conf)
 	backgroundService := service.NewBackgroundService(conf)
-	chatService := service.NewLingChatService(emotionPredictorClient, vitsTTSClient, llmClient, conversationService, conf.Chat.Model, conf.TempDirs.VoiceDir)
+	chatService, err := service.NewLingChatService(emotionPredictorClient, vitsTTSClient, llmClient, conversationService, conf.Chat.Model, conf.TempDirs.VoiceDir)
+	if err != nil {
+		log.Fatal("Failed to create LingChatService: ", err)
+	}
+	defer func() {
+		if err := chatService.Close(); err != nil {
+			log.Printf("Failed to close LingChatService: %v", err)
+		}
+	}()
 
 	// init HTTP server
 	chatRoute := v1.NewChatRoute(chatService, conversationService, characterService, backgroundService, userRepo, j)
 	userRoute := v1.NewUserRoute(userService, userRepo, j)
-	webRoute := v1.NewWebRoute(conf.Backend.StaticDir) // 从配置获取静态文件目录
+	webRoute := v1.NewWebRoute(conf.Backend.StaticDir, conf.TempDirs.VoiceDir)
 	httpEngine := routes.NewHTTPEngine(
 		// Server Addr
 		fmt.Sprintf("%s:%d", conf.Backend.BindAddr, conf.Backend.Port),
