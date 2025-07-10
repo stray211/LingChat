@@ -159,8 +159,8 @@ func (l *LingChatService) CreateResponse(results []Result, userMessage string) [
 }
 
 func (l *LingChatService) EmoPredictBatch(ctx context.Context, results []Result) []Result {
-	// 创建4秒超时的上下文
-	timeoutCtx, cancel := context.WithTimeout(ctx, 4*time.Second)
+	// 创建16秒超时的上下文
+	timeoutCtx, cancel := context.WithTimeout(ctx, 16*time.Second)
 	defer cancel()
 
 	var wg sync.WaitGroup
